@@ -940,6 +940,32 @@ export const messageEmbeddings = sqliteTable("message_embeddings", {
 	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
 });
 
+/**
+ * Scoped automation tokens (agentic-inbox wire format): ain1 mailbox tokens
+ * and ain2 app tokens. Only the SHA-256 hex of the full token string is
+ * stored — the plaintext is shown once at creation. The mailbox segment of
+ * an ain1 token is informational; the row's mailboxId is authoritative, so
+ * tokens migrated from the old deployment keep working after id mapping.
+ */
+export const accessTokens = sqliteTable(
+	"access_tokens",
+	{
+		id: text("id").primaryKey(),
+		tokenHash: text("token_hash").notNull().unique(),
+		kind: text("kind", { enum: ["mailbox", "app"] }).notNull(),
+		userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+		mailboxId: text("mailbox_id").references(() => mailboxes.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		scopes: text("scopes").notNull(),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+		lastUsedAt: timestamp("last_used_at"),
+	},
+	(t) => [
+		index("access_tokens_user_idx").on(t.userId),
+		index("access_tokens_mailbox_idx").on(t.mailboxId),
+	],
+);
+
 export const emailTemplates = sqliteTable(
 	"email_templates",
 	{

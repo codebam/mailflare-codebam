@@ -928,6 +928,15 @@
       ]
     },
     {
+      "name": "0093_access_tokens.sql",
+      "statements": [
+        "CREATE TABLE `access_tokens` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`token_hash` text NOT NULL,\n\t`kind` text NOT NULL,\n\t`user_id` text NOT NULL,\n\t`mailbox_id` text,\n\t`name` text NOT NULL,\n\t`scopes` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\t`last_used_at` integer,\n\tFOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE UNIQUE INDEX `access_tokens_token_hash_idx` ON `access_tokens` (`token_hash`);",
+        "CREATE INDEX `access_tokens_user_idx` ON `access_tokens` (`user_id`);",
+        "CREATE INDEX `access_tokens_mailbox_idx` ON `access_tokens` (`mailbox_id`);"
+      ]
+    },
+    {
       "name": "0093_spam_strictness.sql",
       "statements": [
         "ALTER TABLE `users` ADD `spam_strictness` text DEFAULT 'strict' NOT NULL;"

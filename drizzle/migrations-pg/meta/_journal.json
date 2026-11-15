@@ -159,12 +159,19 @@
     {
       "idx": 22,
       "version": "7",
+      "when": 1794772848405,
+      "tag": "0017_access_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
       "when": 1795027622043,
       "tag": "0017_spam_strictness",
       "breakpoints": true
     },
     {
-      "idx": 23,
+      "idx": 24,
       "version": "7",
       "when": 1795027623043,
       "tag": "0018_promotions",
