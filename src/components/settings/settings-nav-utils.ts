@@ -48,6 +48,35 @@ export const settingsNavSections: SettingsNavSection[] = [
 			},
 		],
 	},
+	{
+		labelKey: "settings.nav.automation",
+		items: [
+			{
+				href: "/settings/automation-rules",
+				labelKey: "settings.nav.automationRules",
+			},
+			{
+				href: "/settings/templates",
+				labelKey: "settings.nav.templates",
+			},
+			{
+				href: "/settings/saved-searches",
+				labelKey: "settings.nav.savedSearches",
+			},
+			{
+				href: "/settings/labels",
+				labelKey: "settings.nav.labels",
+			},
+			{
+				href: "/settings/categories",
+				labelKey: "settings.nav.categories",
+			},
+			{
+				href: "/settings/access-tokens",
+				labelKey: "settings.nav.accessTokens",
+			},
+		],
+	},
 ];
 
 export function isActiveSettingsPath(pathname: string, href: string): boolean {
