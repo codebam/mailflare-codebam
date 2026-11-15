@@ -371,6 +371,8 @@ export const messages = sqliteTable(
 		hasUnsubscribe: bool("has_unsubscribe").notNull().default(false),
 		/** The user's answer to the calendar invitation this message carries: accepted, tentative or declined; null until answered. */
 		inviteResponse: text("invite_response"),
+		/** Category id stamped by rules or the AI classifier; null means uncategorized. */
+		category: text("category"),
 		spamScore: integer("spam_score"),
 		spamVerdict: text("spam_verdict", { enum: ["inbox", "suspicious", "spam"] }),
 		spamSignals: text("spam_signals"),
@@ -730,6 +732,143 @@ export const messageLabels = sqliteTable(
 	(t) => [
 		uniqueIndex("message_labels_message_label_idx").on(t.messageId, t.labelId),
 		index("message_labels_label_idx").on(t.labelId),
+	],
+);
+
+/**
+ * Deterministic per-mailbox rules, evaluated by src/lib/rules/engine.ts in
+ * ascending priority order. `match` and `actions` store the engine's JSON
+ * shapes (RuleMatchSpec / RuleActions). Distinct from routing_rules, which
+ * resolve delivery addresses; these shape mail after delivery.
+ */
+export const rules = sqliteTable(
+	"rules",
+	{
+		id: text("id").primaryKey(),
+		mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		enabled: bool("enabled").notNull().default(true),
+		priority: integer("priority").notNull().default(0),
+		match: text("match").notNull(),
+		actions: text("actions").notNull(),
+		firedCount: integer("fired_count").notNull().default(0),
+		lastFiredAt: timestamp("last_fired_at"),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+		updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+	},
+	(t) => [
+		index("rules_mailbox_priority_idx").on(t.mailboxId, t.priority),
+	],
+);
+
+/** Per-mailbox composer snippets (operator-authored HTML); distinct from the user-level email_templates. */
+export const mailboxTemplates = sqliteTable(
+	"mailbox_templates",
+	{
+		id: text("id").primaryKey(),
+		mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		subject: text("subject").notNull().default(""),
+		body: text("body").notNull(),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+		updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+	},
+	(t) => [
+		index("mailbox_templates_mailbox_idx").on(t.mailboxId),
+	],
+);
+
+/** Named searches re-run from the sidebar; the query uses the search page grammar. */
+export const savedSearches = sqliteTable(
+	"saved_searches",
+	{
+		id: text("id").primaryKey(),
+		mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		query: text("query").notNull(),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+	},
+	(t) => [
+		index("saved_searches_mailbox_idx").on(t.mailboxId),
+	],
+);
+
+/** Muted conversations: new mail still arrives and classifies, but raises no push or webhook notification. */
+export const mutedThreads = sqliteTable(
+	"muted_threads",
+	{
+		id: text("id").primaryKey(),
+		mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
+		threadKey: text("thread_key").notNull(),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+	},
+	(t) => [
+		uniqueIndex("muted_threads_mailbox_thread_idx").on(t.mailboxId, t.threadKey),
+	],
+);
+
+/**
+ * Metadata-only log of mutating agent/tool calls, with the before/after state
+ * needed to undo move, star and read-state changes once. Never stores bodies.
+ */
+export const agentActions = sqliteTable(
+	"agent_actions",
+	{
+		id: text("id").primaryKey(),
+		mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
+		tool: text("tool").notNull(),
+		messageId: text("message_id").references(() => messages.id, { onDelete: "set null" }),
+		subject: text("subject"),
+		threadKey: text("thread_key"),
+		beforeState: text("before_state"),
+		afterState: text("after_state"),
+		undoable: bool("undoable").notNull().default(false),
+		undoneAt: timestamp("undone_at"),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+	},
+	(t) => [
+		index("agent_actions_mailbox_created_idx").on(t.mailboxId, t.createdAt),
+	],
+);
+
+/**
+ * Category definitions. mailboxId "" holds instance-wide categories every
+ * mailbox can use; a real id scopes the category to one mailbox. The empty
+ * sentinel (not NULL) keeps the unique index portable across dialects.
+ */
+export const categories = sqliteTable(
+	"categories",
+	{
+		id: text("id").primaryKey(),
+		mailboxId: text("mailbox_id").notNull().default(""),
+		name: text("name").notNull(),
+		nameKey: text("name_key").notNull(),
+		color: text("color"),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+	},
+	(t) => [
+		uniqueIndex("categories_mailbox_name_idx").on(t.mailboxId, t.nameKey),
+	],
+);
+
+/** Tasks and deadlines extracted from mail (or added by hand), tracked to done/dismissed. */
+export const items = sqliteTable(
+	"items",
+	{
+		id: text("id").primaryKey(),
+		mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
+		messageId: text("message_id").references(() => messages.id, { onDelete: "set null" }),
+		kind: text("kind", { enum: ["task", "deadline"] }).notNull().default("task"),
+		title: text("title").notNull(),
+		details: text("details"),
+		dueAt: timestamp("due_at"),
+		status: text("status", { enum: ["open", "done", "dismissed"] }).notNull().default("open"),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+		updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+	},
+	(t) => [
+		index("items_mailbox_status_idx").on(t.mailboxId, t.status),
+		index("items_mailbox_due_idx").on(t.mailboxId, t.dueAt),
 	],
 );
 
