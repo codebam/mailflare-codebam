@@ -364,6 +364,40 @@
         "CREATE UNIQUE INDEX `message_labels_message_label_idx` ON `message_labels` (`message_id`,`label_id`);",
         "CREATE INDEX `message_labels_label_idx` ON `message_labels` (`label_id`);"
       ]
+    },
+    {
+      "name": "0013_rules_templates_searches_mute.sql",
+      "statements": [
+        "CREATE TABLE `rules` (\n\t`id` varchar(191) NOT NULL,\n\t`mailbox_id` varchar(191) NOT NULL,\n\t`name` longtext NOT NULL,\n\t`enabled` boolean NOT NULL DEFAULT true,\n\t`priority` bigint NOT NULL DEFAULT 0,\n\t`match` longtext NOT NULL,\n\t`actions` longtext NOT NULL,\n\t`fired_count` bigint NOT NULL DEFAULT 0,\n\t`last_fired_at` bigint,\n\t`created_at` bigint NOT NULL,\n\t`updated_at` bigint NOT NULL,\n\tCONSTRAINT `rules_id` PRIMARY KEY(`id`)\n);",
+        "ALTER TABLE `rules` ADD CONSTRAINT `rules_mailbox_id_mailboxes_id_fk` FOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "CREATE INDEX `rules_mailbox_priority_idx` ON `rules` (`mailbox_id`,`priority`);",
+        "CREATE TABLE `mailbox_templates` (\n\t`id` varchar(191) NOT NULL,\n\t`mailbox_id` varchar(191) NOT NULL,\n\t`name` longtext NOT NULL,\n\t`subject` longtext NOT NULL,\n\t`body` longtext NOT NULL,\n\t`created_at` bigint NOT NULL,\n\t`updated_at` bigint NOT NULL,\n\tCONSTRAINT `mailbox_templates_id` PRIMARY KEY(`id`)\n);",
+        "ALTER TABLE `mailbox_templates` ADD CONSTRAINT `mailbox_templates_mailbox_id_mailboxes_id_fk` FOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "CREATE INDEX `mailbox_templates_mailbox_idx` ON `mailbox_templates` (`mailbox_id`);",
+        "CREATE TABLE `saved_searches` (\n\t`id` varchar(191) NOT NULL,\n\t`mailbox_id` varchar(191) NOT NULL,\n\t`name` longtext NOT NULL,\n\t`query` longtext NOT NULL,\n\t`created_at` bigint NOT NULL,\n\tCONSTRAINT `saved_searches_id` PRIMARY KEY(`id`)\n);",
+        "ALTER TABLE `saved_searches` ADD CONSTRAINT `saved_searches_mailbox_id_mailboxes_id_fk` FOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "CREATE INDEX `saved_searches_mailbox_idx` ON `saved_searches` (`mailbox_id`);",
+        "CREATE TABLE `muted_threads` (\n\t`id` varchar(191) NOT NULL,\n\t`mailbox_id` varchar(191) NOT NULL,\n\t`thread_key` varchar(191) NOT NULL,\n\t`created_at` bigint NOT NULL,\n\tCONSTRAINT `muted_threads_id` PRIMARY KEY(`id`)\n);",
+        "ALTER TABLE `muted_threads` ADD CONSTRAINT `muted_threads_mailbox_id_mailboxes_id_fk` FOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "CREATE UNIQUE INDEX `muted_threads_mailbox_thread_idx` ON `muted_threads` (`mailbox_id`,`thread_key`);",
+        "ALTER TABLE `messages` ADD COLUMN `category` longtext;"
+      ]
+    },
+    {
+      "name": "0014_actions_categories_items.sql",
+      "statements": [
+        "CREATE TABLE `agent_actions` (\n\t`id` varchar(191) NOT NULL,\n\t`mailbox_id` varchar(191) NOT NULL,\n\t`tool` longtext NOT NULL,\n\t`message_id` varchar(191),\n\t`subject` longtext,\n\t`thread_key` longtext,\n\t`before_state` longtext,\n\t`after_state` longtext,\n\t`undoable` boolean NOT NULL DEFAULT false,\n\t`undone_at` bigint,\n\t`created_at` bigint NOT NULL,\n\tCONSTRAINT `agent_actions_id` PRIMARY KEY(`id`)\n);",
+        "ALTER TABLE `agent_actions` ADD CONSTRAINT `agent_actions_mailbox_id_mailboxes_id_fk` FOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "ALTER TABLE `agent_actions` ADD CONSTRAINT `agent_actions_message_id_messages_id_fk` FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON DELETE set null ON UPDATE no action;",
+        "CREATE INDEX `agent_actions_mailbox_created_idx` ON `agent_actions` (`mailbox_id`,`created_at`);",
+        "CREATE TABLE `categories` (\n\t`id` varchar(191) NOT NULL,\n\t`mailbox_id` varchar(191) NOT NULL DEFAULT '',\n\t`name` longtext NOT NULL,\n\t`name_key` varchar(191) NOT NULL,\n\t`color` longtext,\n\t`created_at` bigint NOT NULL,\n\tCONSTRAINT `categories_id` PRIMARY KEY(`id`)\n);",
+        "CREATE UNIQUE INDEX `categories_mailbox_name_idx` ON `categories` (`mailbox_id`,`name_key`);",
+        "CREATE TABLE `items` (\n\t`id` varchar(191) NOT NULL,\n\t`mailbox_id` varchar(191) NOT NULL,\n\t`message_id` varchar(191),\n\t`kind` varchar(64) NOT NULL DEFAULT 'task',\n\t`title` longtext NOT NULL,\n\t`details` longtext,\n\t`due_at` bigint,\n\t`status` varchar(64) NOT NULL DEFAULT 'open',\n\t`created_at` bigint NOT NULL,\n\t`updated_at` bigint NOT NULL,\n\tCONSTRAINT `items_id` PRIMARY KEY(`id`)\n);",
+        "ALTER TABLE `items` ADD CONSTRAINT `items_mailbox_id_mailboxes_id_fk` FOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "ALTER TABLE `items` ADD CONSTRAINT `items_message_id_messages_id_fk` FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON DELETE set null ON UPDATE no action;",
+        "CREATE INDEX `items_mailbox_status_idx` ON `items` (`mailbox_id`,`status`);",
+        "CREATE INDEX `items_mailbox_due_idx` ON `items` (`mailbox_id`,`due_at`);"
+      ]
     }
   ]
 }

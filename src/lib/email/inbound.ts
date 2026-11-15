@@ -5,6 +5,8 @@ import { newId } from "@/lib/ids";
 import { buildSnippet, parseRawMime } from "@/lib/email/parse";
 import { boundParsedEmail } from "@/lib/email/inbound-limits";
 import { resolveInboundAddress, resolveInboxRuleDestination } from "@/lib/email/routing";
+import { runInboundRules } from "@/lib/rules/service";
+import { isThreadMuted } from "@/lib/mute/service";
 import { dispatchWebhooks } from "@/lib/email/webhooks";
 import { getMessageContactNames, upsertContactFromAddress } from "@/lib/contacts/service";
 import { getEmailAddress } from "@/lib/email/address";
@@ -125,10 +127,44 @@ export async function processInboundMessage(
 		subject: parsed.subject,
 		content: [parsed.text, parsed.html, snippet].filter(Boolean).join(" "),
 	});
+	// Deterministic per-mailbox rules (ported from agentic-inbox) run before the
+	// classifier: a matching rule shapes the stored message, discard drops it,
+	// and routed mail skips AI classification. Rule failures never lose mail.
+	let ruleCategory: string | null = null;
+	let ruleRead = false;
+	let ruleStarred = false;
+	let rulesRouted = false;
+	try {
+		const ruleRun = await runInboundRules(db, decision.mailbox.mailboxId, {
+			sender: fromAddr,
+			recipient: toAddr,
+			envelope_recipient: payload.to,
+			cc: parsed.ccAddr,
+			subject: parsed.subject,
+			body: parsed.text ?? parsed.html,
+			has_attachment: parsed.attachments.length > 0,
+		});
+		if (ruleRun.discarded) {
+			await env.BUCKET.delete(payload.rawR2Key);
+			return;
+		}
+		rulesRouted = ruleRun.routed;
+		if (ruleRun.mutation.folder && destination.status === "received") destination.folderId = ruleRun.mutation.folder;
+		if (ruleRun.mutation.category) ruleCategory = ruleRun.mutation.category;
+		if (ruleRun.mutation.read !== undefined) ruleRead = ruleRun.mutation.read;
+		if (ruleRun.mutation.starred !== undefined) ruleStarred = ruleRun.mutation.starred;
+		if (ruleRun.outbound.length > 0) {
+			// forward_to / auto_reply_text execution lands with the sender-policy
+			// intake work; until then operator outbound actions are logged, not sent.
+			console.warn(`Inbound rule outbound actions pending execution for ${messageId}: ${ruleRun.outbound.map((action) => `${action.kind}:${action.rule_name}`).join(", ")}`);
+		}
+	} catch (error) {
+		console.error(`Inbound rules failed for ${messageId}`, error);
+	}
 	let spamAnalysis: Awaited<ReturnType<typeof analyzeSpam>> | null = null;
 	let spamAnalysisError: string | null = null;
 	const [owner] = await db.select({ enabled: users.spamProtectionEnabled }).from(users).where(eq(users.id, decision.mailbox.userId)).limit(1);
-	if (owner?.enabled !== false) {
+	if (owner?.enabled !== false && !rulesRouted) {
 		try {
 			const intelligence = await getSpamIntelligenceConfig(env);
 			spamAnalysis = await analyzeSpam(db, {
@@ -207,8 +243,11 @@ export async function processInboundMessage(
 			htmlBody: parsed.html,
 			rawR2Key: payload.rawR2Key,
 			status,
-			// The From header is forgeable, so mail "from yourself" is not treated as already read.
-			read: false,
+			// The From header is forgeable, so mail "from yourself" is not treated
+			// as already read — unless a deterministic rule explicitly marked it.
+			read: ruleRead,
+			starred: ruleStarred,
+			category: ruleCategory,
 			threadId,
 			inReplyTo: parsed.inReplyTo,
 			references: parsed.references.length ? parsed.references.join(" ") : null,
@@ -258,8 +297,20 @@ export async function processInboundMessage(
 		}
 	}
 
+	// Muted threads still receive and classify mail, but raise no push or
+	// webhook notification (ported from agentic-inbox).
+	let threadMuted = false;
+	if (status !== "spam" && status !== "trash") {
+		try {
+			threadMuted = await isThreadMuted(db, decision.mailbox.mailboxId, threadId);
+		} catch (error) {
+			console.error(`Mute lookup failed for ${messageId}`, error);
+		}
+	}
 	if (status === "spam" || status === "trash") {
 		console.info(`No notification for ${messageId}: filed as ${status}`);
+	} else if (threadMuted) {
+		console.info(`No notification for ${messageId}: thread muted`);
 	} else {
 		const notificationUserIds = await getMailboxNotificationUserIds(
 			env,
@@ -275,7 +326,7 @@ export async function processInboundMessage(
 		}));
 	}
 	// Spam and blocked mail carry an unauthenticated From; consumers acting on it would be fooled.
-	if (status !== "spam" && status !== "trash") {
+	if (status !== "spam" && status !== "trash" && !threadMuted) {
 		await dispatchWebhooks(env, decision.mailbox.userId, "message.inbound", {
 			messageId,
 			from: fromAddr,

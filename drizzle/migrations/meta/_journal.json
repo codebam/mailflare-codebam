@@ -575,6 +575,20 @@
       "when": 1794768039222,
       "tag": "0090_labels",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "6",
+      "when": 1794769103191,
+      "tag": "0089_rules_templates_searches_mute",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "6",
+      "when": 1794769848220,
+      "tag": "0090_actions_categories_items",
+      "breakpoints": true
     }
   ]
 }

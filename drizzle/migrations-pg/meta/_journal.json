@@ -106,6 +106,20 @@
       "when": 1794768039222,
       "tag": "0014_labels",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794769103191,
+      "tag": "0013_rules_templates_searches_mute",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794769848220,
+      "tag": "0014_actions_categories_items",
+      "breakpoints": true
     }
   ]
 }
