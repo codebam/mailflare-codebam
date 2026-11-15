@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getDb } from "@/db";
 import { agentSendApprovals, messages } from "@/db/schema";
 import { getMailboxAccessLevel, listAccessibleMailboxes } from "@/lib/mailboxes/access";
+import { addMessageLabel, createLabel, deleteLabel, listLabels, removeMessageLabel, resolveLabel, updateLabel } from "@/lib/labels/service";
 import { runEmailTool, EMAIL_TOOL_NAMES, emailToolDescriptions, emailToolSchemas } from "@/lib/agent/tools";
 import { editAgentDraft } from "@/lib/agent/edit-draft";
 import { requestAgentSend, getAgentSendRequest } from "@/lib/agent/approvals/utils";
@@ -145,6 +146,81 @@ export function createMailflareMcpHandler(env: CloudflareEnv, principal: McpPrin
 				return result.ok ? output({ messageId, noteId, deleted: true }) : output({ error: result.error === "forbidden" ? "Only the author or a mailbox manager can delete this note" : "Note not found" }, true);
 			}
 			catch (error) { return output({ error: error instanceof Error ? error.message : "Tool failed" }, true); }
+		});
+		// Labels: per-mailbox tags on messages. Reads need mcp:read, changes mcp:organize.
+		const labelDb = async (mailboxId: string, manage: boolean) => {
+			if (!principal.mailboxIds.includes(mailboxId)) return null;
+			const db = getDb(env);
+			const access = await getMailboxAccessLevel(db, principal.user, mailboxId);
+			if (!access?.canRead || (manage && !access.canManage)) return null;
+			return db;
+		};
+		const labelError = (error: string) => output({ error: error === "name_taken" ? "A label with that name already exists" : error === "limit_reached" ? "This mailbox has reached the label limit (100)" : error === "invalid_name" ? "Label name must be 1-50 characters" : error === "invalid_color" ? "Color must be a hex token like #f59e0b" : "Label not found" }, true);
+		server.registerTool("list_labels", { description: "List the mailbox's labels, ordered by name.", inputSchema: z.object({ mailboxId: z.string() }), annotations: { readOnlyHint: true, openWorldHint: false } }, async ({ mailboxId }) => {
+			if (!principal.scopes.includes("mcp:read")) return output({ error: "Permission denied" }, true);
+			const db = await labelDb(mailboxId, false);
+			if (!db) return output({ error: "Permission denied" }, true);
+			audit(principal, "list_labels", mailboxId);
+			try { return output({ labels: await listLabels(db, mailboxId) }); }
+			catch (error) { return output({ error: error instanceof Error ? error.message : "Tool failed" }, true); }
+		});
+		server.registerTool("create_label", { description: "Create a label in the mailbox. Names are 1-50 characters, unique case-insensitively; at most 100 labels per mailbox.", inputSchema: z.object({ mailboxId: z.string(), name: z.string(), color: z.string().optional() }), annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } }, async ({ mailboxId, name, color }) => {
+			if (!principal.scopes.includes("mcp:organize")) return output({ error: "Permission denied" }, true);
+			const db = await labelDb(mailboxId, true);
+			if (!db) return output({ error: "Permission denied" }, true);
+			audit(principal, "create_label", mailboxId);
+			try {
+				const result = await createLabel(db, mailboxId, { name, color });
+				return result.ok ? output({ label: result.label }) : labelError(result.error);
+			} catch (error) { return output({ error: error instanceof Error ? error.message : "Tool failed" }, true); }
+		});
+		server.registerTool("update_label", { description: "Rename a label and/or change its color, resolved by name or id. Omitted fields keep their value; an explicit null color clears it.", inputSchema: z.object({ mailboxId: z.string(), label: z.string(), name: z.string().optional(), color: z.string().nullable().optional() }), annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } }, async ({ mailboxId, label, name, color }) => {
+			if (!principal.scopes.includes("mcp:organize")) return output({ error: "Permission denied" }, true);
+			const db = await labelDb(mailboxId, true);
+			if (!db) return output({ error: "Permission denied" }, true);
+			audit(principal, "update_label", mailboxId);
+			try {
+				const found = await resolveLabel(db, mailboxId, label);
+				if (!found) return labelError("not_found");
+				const result = await updateLabel(db, mailboxId, found.id, { name, color });
+				return result.ok ? output({ label: result.label }) : labelError(result.error);
+			} catch (error) { return output({ error: error instanceof Error ? error.message : "Tool failed" }, true); }
+		});
+		server.registerTool("delete_label", { description: "Delete a label by name or id and detach it from every message. The messages themselves are not touched.", inputSchema: z.object({ mailboxId: z.string(), label: z.string() }), annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false } }, async ({ mailboxId, label }) => {
+			if (!principal.scopes.includes("mcp:organize")) return output({ error: "Permission denied" }, true);
+			const db = await labelDb(mailboxId, true);
+			if (!db) return output({ error: "Permission denied" }, true);
+			audit(principal, "delete_label", mailboxId);
+			try {
+				const found = await resolveLabel(db, mailboxId, label);
+				if (!found) return labelError("not_found");
+				const result = await deleteLabel(db, mailboxId, found.id);
+				return result.ok ? output({ deleted: true }) : labelError(result.error);
+			} catch (error) { return output({ error: error instanceof Error ? error.message : "Tool failed" }, true); }
+		});
+		server.registerTool("add_label", { description: "Attach one label (by name or id) to one email. Answers the email's labels after the change.", inputSchema: z.object({ mailboxId: z.string(), emailId: z.string(), label: z.string() }), annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } }, async ({ mailboxId, emailId, label }) => {
+			if (!principal.scopes.includes("mcp:organize")) return output({ error: "Permission denied" }, true);
+			const db = await labelDb(mailboxId, true);
+			if (!db) return output({ error: "Permission denied" }, true);
+			audit(principal, "add_label", mailboxId);
+			try {
+				const found = await resolveLabel(db, mailboxId, label);
+				if (!found) return labelError("not_found");
+				const result = await addMessageLabel(db, mailboxId, emailId, found.id);
+				return result.ok ? output({ emailId, labels: result.labels }) : labelError(result.error);
+			} catch (error) { return output({ error: error instanceof Error ? error.message : "Tool failed" }, true); }
+		});
+		server.registerTool("remove_label", { description: "Detach one label (by name or id) from one email; detaching a label the email does not carry is a no-op. Answers the email's labels after the change.", inputSchema: z.object({ mailboxId: z.string(), emailId: z.string(), label: z.string() }), annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } }, async ({ mailboxId, emailId, label }) => {
+			if (!principal.scopes.includes("mcp:organize")) return output({ error: "Permission denied" }, true);
+			const db = await labelDb(mailboxId, true);
+			if (!db) return output({ error: "Permission denied" }, true);
+			audit(principal, "remove_label", mailboxId);
+			try {
+				const found = await resolveLabel(db, mailboxId, label);
+				if (!found) return labelError("not_found");
+				const result = await removeMessageLabel(db, mailboxId, emailId, found.id);
+				return result.ok ? output({ emailId, labels: result.labels }) : labelError(result.error);
+			} catch (error) { return output({ error: error instanceof Error ? error.message : "Tool failed" }, true); }
 		});
 		server.registerTool("get_send_request", { description: "Read the status of this key's send review request", inputSchema: z.object({ approvalId: z.string() }) }, async ({ approvalId }) => {
 			if (!principal.scopes.includes("mcp:request-send")) return output({ error: "Permission denied" }, true);

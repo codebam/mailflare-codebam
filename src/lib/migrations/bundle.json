@@ -830,6 +830,16 @@
       ]
     },
     {
+      "name": "0090_labels.sql",
+      "statements": [
+        "CREATE TABLE `labels` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`name` text NOT NULL,\n\t`name_key` text NOT NULL,\n\t`color` text,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE UNIQUE INDEX `labels_mailbox_name_idx` ON `labels` (`mailbox_id`,`name_key`);",
+        "CREATE TABLE `message_labels` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`message_id` text NOT NULL,\n\t`label_id` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,\n\tFOREIGN KEY (`label_id`) REFERENCES `labels`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE UNIQUE INDEX `message_labels_message_label_idx` ON `message_labels` (`message_id`,`label_id`);",
+        "CREATE INDEX `message_labels_label_idx` ON `message_labels` (`label_id`);"
+      ]
+    },
+    {
       "name": "0090_security_hardening.sql",
       "statements": [
         "ALTER TABLE `messages` ADD `private_draft` integer DEFAULT false NOT NULL;",

@@ -26,6 +26,7 @@ import {
 } from "@/components/message-actions/utils";
 import { toggleMessageStar } from "./message-list-row-actions-utils";
 import { useConversationNotes } from "./conversation-notes-context";
+import { MessageLabelsButton } from "./message-labels";
 import type { ThreadMessageActionsProps } from "./thread-message-actions-types";
 import type { ReplyMode } from "@/components/message-actions/types";
 
@@ -187,6 +188,7 @@ export function ThreadMessageActions({
 					</Button>
 				</Tooltip>
 			)}
+			{mailboxId && <MessageLabelsButton messageId={message.id} mailboxId={mailboxId} />}
 			<Tooltip label={starred ? t("message.removeStar") : t("message.star")}>
 				<Button
 					type="button"
