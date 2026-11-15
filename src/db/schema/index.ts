@@ -1437,6 +1437,10 @@ export const mailboxAgentSettings = sqliteTable("mailbox_agent_settings", {
 	reviewerUserId: text("reviewer_user_id").references(() => users.id, { onDelete: "set null" }),
 	instructions: text("instructions").notNull().default(""),
 	dailyLimit: integer("daily_limit").notNull().default(25),
+	/** AI classification of incoming mail (spam second opinion, category, reply-expected). */
+	classifyEnabled: bool("classify_enabled").notNull().default(true),
+	/** AI extraction of tasks and deadlines from incoming mail. */
+	extractItemsEnabled: bool("extract_items_enabled").notNull().default(true),
 	updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
 }, (t) => [index("mailbox_agent_settings_reviewer_idx").on(t.reviewerUserId)]);
 

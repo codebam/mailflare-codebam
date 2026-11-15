@@ -24,8 +24,11 @@ function isAutomaticMessage(from: string, headers?: Record<string, string>) {
 	return !!(values["list-id"] || values["x-autoreply"] || values["x-autorespond"] || values["x-auto-response-suppress"] || (values["auto-submitted"] && values["auto-submitted"] !== "no") || /^(bulk|junk|list)$/.test(values.precedence ?? ""));
 }
 
-export async function scheduleAutoDraft(env: CloudflareEnv, input: { mailboxId: string; sourceMessageId: string; ownerUserId: string; sender: string; headers?: Record<string, string>; status: string; folderId: string | null; spamVerdict?: string | null; spamAnalysisError?: string | null }) {
+export async function scheduleAutoDraft(env: CloudflareEnv, input: { mailboxId: string; sourceMessageId: string; ownerUserId: string; sender: string; headers?: Record<string, string>; status: string; folderId: string | null; spamVerdict?: string | null; spamAnalysisError?: string | null; replyExpected?: boolean }) {
 	if (input.status !== "received" || input.folderId || input.spamAnalysisError || (input.spamVerdict && input.spamVerdict !== "inbox") || isAutomaticMessage(input.sender, input.headers)) return;
+	// The AI classifier's reply-expected gate (agentic-inbox): one-way mail
+	// (receipts, alerts, newsletters) and injection-flagged mail never draft.
+	if (input.replyExpected === false) return;
 	if (!await getAgentEnabled(env)) return;
 	const db = getDb(env);
 	const [settings] = await db.select().from(mailboxAgentSettings).where(eq(mailboxAgentSettings.mailboxId, input.mailboxId)).limit(1);

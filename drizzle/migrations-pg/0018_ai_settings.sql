@@ -1,0 +1,2 @@
+ALTER TABLE "mailbox_agent_settings" ADD COLUMN "classify_enabled" boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE "mailbox_agent_settings" ADD COLUMN "extract_items_enabled" boolean DEFAULT true NOT NULL;

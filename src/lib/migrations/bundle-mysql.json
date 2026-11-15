@@ -432,6 +432,13 @@
         "CREATE INDEX `access_tokens_user_idx` ON `access_tokens` (`user_id`);",
         "CREATE INDEX `access_tokens_mailbox_idx` ON `access_tokens` (`mailbox_id`);"
       ]
+    },
+    {
+      "name": "0018_ai_settings.sql",
+      "statements": [
+        "ALTER TABLE `mailbox_agent_settings` ADD COLUMN `classify_enabled` boolean NOT NULL DEFAULT true;",
+        "ALTER TABLE `mailbox_agent_settings` ADD COLUMN `extract_items_enabled` boolean NOT NULL DEFAULT true;"
+      ]
     }
   ]
 }

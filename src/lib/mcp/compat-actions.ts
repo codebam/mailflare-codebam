@@ -9,6 +9,7 @@ import { runEmailTool } from "@/lib/agent/tools";
 import { getUnsubscribeUrlFromRawR2Key } from "@/lib/email/unsubscribe";
 import { parseRemoteImageUrl } from "@/lib/remote-images/fetch";
 import { answerInvite } from "@/lib/calendar/invite-answer";
+import { cleanDraftBody } from "@/lib/ai/verify-draft";
 import { recordAction } from "@/lib/agent-actions/service";
 import { audit, compatDb, denied, errorMessage, ownMessage, output, parseWhen, recordMutation, resolveFolder, threadKeyOf, type CompatDb } from "./compat-shared";
 import type { McpPrincipal } from "./types";
@@ -66,9 +67,10 @@ export function registerCompatActionTools(server: McpServer, principal: McpPrinc
 	// ---- Drafts ----
 	server.registerTool("create_draft", { description: "Create a new draft email, or a reply draft when in_reply_to names an email. Saves to Drafts; never sends.", inputSchema: z.object({ mailboxId: z.string(), to: z.string().optional(), subject: z.string(), bodyHtml: z.string(), in_reply_to: z.string().optional(), thread_id: z.string().optional() }), annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } }, async ({ mailboxId, to, subject, bodyHtml, in_reply_to, thread_id }) =>
 		guard(mailboxId, "mcp:draft", "create_draft", async (db) => {
+			const body = await cleanDraftBody(env, bodyHtml);
 			const result = in_reply_to
-				? await runEmailTool(agentContext(mailboxId), "draft_reply", { emailId: in_reply_to, body: bodyHtml, replyAll: false })
-				: await runEmailTool(agentContext(mailboxId), "draft_email", { to: to ?? "", subject, body: bodyHtml });
+				? await runEmailTool(agentContext(mailboxId), "draft_reply", { emailId: in_reply_to, body, replyAll: false })
+				: await runEmailTool(agentContext(mailboxId), "draft_email", { to: to ?? "", subject, body });
 			const draftId = (result as { draftId: string }).draftId;
 			if (thread_id || (to && in_reply_to)) {
 				await db.update(messages).set({ ...(thread_id ? { threadId: thread_id } : {}), ...(to && in_reply_to ? { toAddr: to } : {}) }).where(eq(messages.id, draftId));
@@ -79,7 +81,8 @@ export function registerCompatActionTools(server: McpServer, principal: McpPrinc
 
 	server.registerTool("draft_reply", { description: "Draft a reply to an email and save it to the Drafts folder. Does NOT send — saves a draft for review.", inputSchema: z.object({ mailboxId: z.string(), originalEmailId: z.string(), to: z.string().optional(), subject: z.string().optional(), bodyHtml: z.string() }), annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } }, async ({ mailboxId, originalEmailId, to, subject, bodyHtml }) =>
 		guard(mailboxId, "mcp:draft", "draft_reply", async (db) => {
-			const result = await runEmailTool(agentContext(mailboxId), "draft_reply", { emailId: originalEmailId, body: bodyHtml, replyAll: false });
+			const body = await cleanDraftBody(env, bodyHtml);
+			const result = await runEmailTool(agentContext(mailboxId), "draft_reply", { emailId: originalEmailId, body, replyAll: false });
 			const draftId = (result as { draftId: string }).draftId;
 			if (to || subject) await db.update(messages).set({ ...(to ? { toAddr: to } : {}), ...(subject ? { subject } : {}) }).where(eq(messages.id, draftId));
 			return result;
@@ -89,10 +92,11 @@ export function registerCompatActionTools(server: McpServer, principal: McpPrinc
 		guard(mailboxId, "mcp:draft", "update_draft", async (db) => {
 			const row = await ownMessage(db, mailboxId, draftId);
 			if (row.status !== "draft") throw new Error("Draft not found");
+			const cleanedBody = bodyHtml !== undefined ? await cleanDraftBody(env, bodyHtml) : undefined;
 			await db.update(messages).set({
 				...(to !== undefined ? { toAddr: to } : {}),
 				...(subject !== undefined ? { subject } : {}),
-				...(bodyHtml !== undefined ? { htmlBody: bodyHtml, textBody: bodyHtml.replace(/<[^>]+>/g, " ") } : {}),
+				...(cleanedBody !== undefined ? { htmlBody: cleanedBody, textBody: cleanedBody.replace(/<[^>]+>/g, " ") } : {}),
 			}).where(eq(messages.id, draftId));
 			return { draftId, status: "updated" };
 		}));

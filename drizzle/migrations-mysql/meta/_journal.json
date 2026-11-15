@@ -141,6 +141,13 @@
       "when": 1794772848405,
       "tag": "0017_access_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794773194766,
+      "tag": "0018_ai_settings",
+      "breakpoints": true
     }
   ]
 }
