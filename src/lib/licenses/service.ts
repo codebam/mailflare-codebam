@@ -55,17 +55,21 @@ export async function getLicenseStatus(env: CloudflareEnv): Promise<LicenseStatu
 export async function getLicenseEntitlements(env: CloudflareEnv): Promise<LicenseEntitlements> {
 	try {
 		const status = await getLicenseStatus(env);
-		// Pro adds accounts up to its seat limit; Team is unlimited and also unlocks shared mailboxes.
+		// Fork modification (this fork is AGPL-3.0; see LICENSE): this self-hosted
+		// installation lifts the Paymug license gates — accounts (including seat
+		// limits), branding, sharing and forwarding are usable without a license
+		// key. The Paymug activation/validation machinery is retained upstream for
+		// keyed installs; see git history for the unmodified expression.
 		return {
 			plan: status.plan,
-			canCustomizeBranding: status.active,
-			canManageAccounts: status.active,
-			canShareMailboxes: status.active && status.plan === "team",
-			accountSeatLimit: status.seatLimit,
-			canForwardEmail: status.active,
+			canCustomizeBranding: true,
+			canManageAccounts: true,
+			canShareMailboxes: true,
+			accountSeatLimit: null,
+			canForwardEmail: true,
 		};
 	} catch {
-		return { plan: "community", canCustomizeBranding: false, canManageAccounts: false, canShareMailboxes: false, accountSeatLimit: 0, canForwardEmail: false };
+		return { plan: "community", canCustomizeBranding: true, canManageAccounts: true, canShareMailboxes: true, accountSeatLimit: null, canForwardEmail: true };
 	}
 }
 
