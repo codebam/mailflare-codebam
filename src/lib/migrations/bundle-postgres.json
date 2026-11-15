@@ -446,6 +446,20 @@
       ]
     },
     {
+      "name": "0015_sender_policy_delivery.sql",
+      "statements": [
+        "CREATE TABLE \"sender_policies\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"mailbox_id\" text NOT NULL,\n\t\"address\" text NOT NULL,\n\t\"policy\" text NOT NULL,\n\t\"created_at\" bigint NOT NULL\n);",
+        "ALTER TABLE \"sender_policies\" ADD CONSTRAINT \"sender_policies_mailbox_id_mailboxes_id_fk\" FOREIGN KEY (\"mailbox_id\") REFERENCES \"public\".\"mailboxes\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+        "CREATE UNIQUE INDEX \"sender_policies_mailbox_address_idx\" ON \"sender_policies\" USING btree (\"mailbox_id\",\"address\");",
+        "CREATE TABLE \"rule_outbound_log\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"mailbox_id\" text NOT NULL,\n\t\"kind\" text NOT NULL,\n\t\"sender\" text NOT NULL,\n\t\"created_at\" bigint NOT NULL\n);",
+        "ALTER TABLE \"rule_outbound_log\" ADD CONSTRAINT \"rule_outbound_log_mailbox_id_mailboxes_id_fk\" FOREIGN KEY (\"mailbox_id\") REFERENCES \"public\".\"mailboxes\"(\"id\") ON DELETE cascade ON UPDATE no action;",
+        "CREATE INDEX \"rule_outbound_log_mailbox_sender_idx\" ON \"rule_outbound_log\" USING btree (\"mailbox_id\",\"sender\",\"created_at\");",
+        "ALTER TABLE \"messages\" ADD COLUMN \"delivered_to\" text;",
+        "ALTER TABLE \"messages\" ADD COLUMN \"delivery_status\" text;",
+        "ALTER TABLE \"messages\" ADD COLUMN \"delivery_detail\" text;"
+      ]
+    },
+    {
       "name": "0016_calendar_invite_complete.sql",
       "statements": [
         "CREATE TABLE \"calendar_event_overrides\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"event_id\" text NOT NULL,\n\t\"occurrence_ms\" bigint NOT NULL,\n\t\"starts_at\" bigint NOT NULL,\n\t\"ends_at\" bigint NOT NULL,\n\t\"title\" text,\n\t\"description\" text,\n\t\"location\" text,\n\t\"created_at\" bigint NOT NULL,\n\t\"updated_at\" bigint NOT NULL\n);",

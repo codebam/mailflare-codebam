@@ -14,6 +14,7 @@ import type { EmailToolName } from "@/lib/agent/types";
 import type { McpPrincipal } from "./types";
 import { registerAdminMcpTools } from "./admin-tools";
 import { registerOrganizeMcpTools } from "./organize-tools";
+import { registerMailMcpTools } from "./mail-tools";
 import { CALENDAR_TOOL_NAMES, calendarToolDescriptions, calendarToolSchemas, calendarToolScope, runCalendarTool } from "@/lib/calendar/tools";
 
 const scopeByTool: Record<EmailToolName, string> = {
@@ -232,6 +233,7 @@ export function createMailflareMcpHandler(env: CloudflareEnv, principal: McpPrin
 		});
 		}
 		registerOrganizeMcpTools(server, principal, env);
+		registerMailMcpTools(server, principal, env);
 		registerAdminMcpTools(server, principal, baseUrl, authorization);
 		return server;
 	}, { responseMode: "json" });

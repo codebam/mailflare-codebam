@@ -6,6 +6,11 @@ import { buildSnippet, parseRawMime } from "@/lib/email/parse";
 import { boundParsedEmail } from "@/lib/email/inbound-limits";
 import { resolveInboundAddress, resolveInboxRuleDestination } from "@/lib/email/routing";
 import { runInboundRules } from "@/lib/rules/service";
+import { executeRuleOutbound } from "@/lib/rules/outbound";
+import type { RuleOutboundAction } from "@/lib/rules/engine";
+import { getSenderPolicy } from "@/lib/sender-policy/service";
+import type { SenderPolicy } from "@/lib/sender-policy/sender-policy-utils";
+import { applyDeliveryReport } from "@/lib/email/delivery-report";
 import { isThreadMuted } from "@/lib/mute/service";
 import { dispatchWebhooks } from "@/lib/email/webhooks";
 import { getMessageContactNames, upsertContactFromAddress } from "@/lib/contacts/service";
@@ -132,6 +137,7 @@ export async function processInboundMessage(
 	let ruleRead = false;
 	let ruleStarred = false;
 	let rulesRouted = false;
+	let ruleOutbound: RuleOutboundAction[] = [];
 	try {
 		const ruleRun = await runInboundRules(db, decision.mailbox.mailboxId, {
 			sender: fromAddr,
@@ -147,22 +153,27 @@ export async function processInboundMessage(
 			return;
 		}
 		rulesRouted = ruleRun.routed;
+		ruleOutbound = ruleRun.outbound;
 		if (ruleRun.mutation.folder && destination.status === "received") destination.folderId = ruleRun.mutation.folder;
 		if (ruleRun.mutation.category) ruleCategory = ruleRun.mutation.category;
 		if (ruleRun.mutation.read !== undefined) ruleRead = ruleRun.mutation.read;
 		if (ruleRun.mutation.starred !== undefined) ruleStarred = ruleRun.mutation.starred;
-		if (ruleRun.outbound.length > 0) {
-			// forward_to / auto_reply_text execution lands with the sender-policy
-			// intake work; until then operator outbound actions are logged, not sent.
-			console.warn(`Inbound rule outbound actions pending execution for ${messageId}: ${ruleRun.outbound.map((action) => `${action.kind}:${action.rule_name}`).join(", ")}`);
-		}
 	} catch (error) {
 		console.error(`Inbound rules failed for ${messageId}`, error);
+	}
+	// Sender allow/block policy (ported from agentic-inbox): block files the
+	// message into Spam without classifying; allow skips the spam question.
+	// Blocked mail is still stored — never silently dropped.
+	let senderPolicy: SenderPolicy | null = null;
+	try {
+		senderPolicy = await getSenderPolicy(db, decision.mailbox.mailboxId, fromAddr);
+	} catch (error) {
+		console.error(`Sender policy lookup failed for ${messageId}`, error);
 	}
 	let spamAnalysis: Awaited<ReturnType<typeof analyzeSpam>> | null = null;
 	let spamAnalysisError: string | null = null;
 	const [owner] = await db.select({ enabled: users.spamProtectionEnabled, strictness: users.spamStrictness }).from(users).where(eq(users.id, decision.mailbox.userId)).limit(1);
-	if (owner?.enabled !== false && !rulesRouted) {
+	if (owner?.enabled !== false && !rulesRouted && senderPolicy === null) {
 		try {
 			const intelligence = await getSpamIntelligenceConfig(env);
 			spamAnalysis = await analyzeSpam(db, {
@@ -190,9 +201,11 @@ export async function processInboundMessage(
 			fingerprint: spamAnalysis?.fingerprint ?? "",
 		};
 	}
-	const status = destination.status === "received" && spamAnalysis?.verdict === "spam"
+	const status = senderPolicy === "block"
 		? "spam"
-		: destination.status;
+		: destination.status === "received" && spamAnalysis?.verdict === "spam"
+			? "spam"
+			: destination.status;
 	const folderId = status === "spam" ? null : destination.folderId;
 	// A contact the database cannot hold (e.g. an over-long address) must not lose the mail.
 	const contact = await upsertContactFromAddress(env, {
@@ -253,6 +266,7 @@ export async function processInboundMessage(
 			read: ruleRead,
 			starred: ruleStarred,
 			category: ruleCategory,
+			deliveredTo: payload.to,
 			threadId,
 			inReplyTo: parsed.inReplyTo,
 			references: parsed.references.length ? parsed.references.join(" ") : null,
@@ -268,6 +282,14 @@ export async function processInboundMessage(
 		if (!inserted.length) return;
 
 		await storeMessageAttachments(env, messageId, parsed.attachments);
+		// Delivery reports update the matching Sent copy's delivery status; the
+		// DSN itself is stored as ordinary mail whatever the match does.
+		try {
+			const report = await applyDeliveryReport(db, decision.mailbox.mailboxId, parsed);
+			if (report.matched) console.info(JSON.stringify({ deliveryReport: true, messageId, matchedMessageId: report.messageId, status: report.status }));
+		} catch (error) {
+			console.error(`Delivery report matching failed for ${messageId}`, error);
+		}
 		if (status !== "spam" && status !== "trash") {
 			await registerInboundInvite(env, { userId: decision.mailbox.userId, mailboxId: decision.mailbox.mailboxId, messageId, senderAddress: fromAddr, attachments: parsed.attachments });
 		}
@@ -348,6 +370,27 @@ export async function processInboundMessage(
 	try {
 		await scheduleAutoDraft(env, { mailboxId: decision.mailbox.mailboxId, sourceMessageId: messageId, ownerUserId: decision.mailbox.userId, sender: fromAddr, headers: payload.headers, status, folderId, spamVerdict: spamAnalysis?.verdict, spamAnalysisError });
 	} catch (error) { console.error("Auto-draft scheduling failed", error); }
+	// Operator-authored rule outbound actions (forward / auto-reply), behind the
+	// loop and quota guards; never for spam or trash.
+	if (ruleOutbound.length > 0) {
+		try {
+			const reports = await executeRuleOutbound(db, env, {
+				mailboxId: decision.mailbox.mailboxId,
+				userId: decision.mailbox.userId,
+				mailboxAddress: `${decision.mailbox.localPart}@${decision.mailbox.hostname}`,
+				sender: (getEmailAddress(fromAddr) ?? fromAddr).toLowerCase(),
+				subject: parsed.subject ?? "",
+				text: parsed.text,
+				html: parsed.html,
+				headers: payload.headers,
+			}, ruleOutbound, { skip: status === "spam" || status === "trash" });
+			for (const report of reports) {
+				if (report.status !== "sent") console.info(JSON.stringify({ ruleOutbound: report, messageId }));
+			}
+		} catch (error) {
+			console.error(`Rule outbound execution failed for ${messageId}`, error);
+		}
+	}
 }
 
 export async function storeRawToR2(

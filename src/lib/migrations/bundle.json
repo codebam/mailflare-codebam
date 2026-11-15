@@ -887,6 +887,18 @@
       ]
     },
     {
+      "name": "0091_sender_policy_delivery.sql",
+      "statements": [
+        "CREATE TABLE `sender_policies` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`address` text NOT NULL,\n\t`policy` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE UNIQUE INDEX `sender_policies_mailbox_address_idx` ON `sender_policies` (`mailbox_id`,`address`);",
+        "CREATE TABLE `rule_outbound_log` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`kind` text NOT NULL,\n\t`sender` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE INDEX `rule_outbound_log_mailbox_sender_idx` ON `rule_outbound_log` (`mailbox_id`,`sender`,`created_at`);",
+        "ALTER TABLE `messages` ADD COLUMN `delivered_to` text;",
+        "ALTER TABLE `messages` ADD COLUMN `delivery_status` text;",
+        "ALTER TABLE `messages` ADD COLUMN `delivery_detail` text;"
+      ]
+    },
+    {
       "name": "0092_calendar_invite_complete.sql",
       "statements": [
         "ALTER TABLE `calendar_events` ADD `repeat_interval` integer NOT NULL DEFAULT 1;",

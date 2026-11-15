@@ -137,20 +137,27 @@
     },
     {
       "idx": 19,
+      "version": "7",
+      "when": 1794770939548,
+      "tag": "0015_sender_policy_delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
       "version": "5",
       "when": 1795027658151,
       "tag": "0016_calendar_invite_complete",
       "breakpoints": true
     },
     {
-      "idx": 20,
+      "idx": 21,
       "version": "5",
       "when": 1795027659151,
       "tag": "0017_spam_strictness",
       "breakpoints": true
     },
     {
-      "idx": 21,
+      "idx": 22,
       "version": "5",
       "when": 1795027660151,
       "tag": "0018_promotions",
