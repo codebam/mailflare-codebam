@@ -191,15 +191,18 @@ test("owners and shared mailbox grants keep their existing settings permissions"
 	assert.equal((await f.patch("sam", "m-shared", { displayName: "Shared Updated" })).status, 200);
 });
 
-test("administrative mailbox settings preserve the account license requirement", async t => {
+test("administrative mailbox settings work with or without a license in this fork", async t => {
 	for (const plan of ["community", "pro"]) {
 		const f = await fixture(t, plan);
-		assert.equal((await f.read("primary", "m-sam")).status, plan === "pro" ? 200 : 404);
-		assert.equal((await f.patch("primary", "m-sam", { displayName: "Licensed" })).status, plan === "pro" ? 200 : 404);
+		// Fork modification: the account license gate is lifted, so an admin can
+		// manage another user's mailbox settings on community too (upstream
+		// answered 404 there). Ownership boundaries are unchanged: sam still
+		// cannot manage primary's sales mailbox, only his own.
+		assert.equal((await f.read("primary", "m-sam")).status, 200);
+		assert.equal((await f.patch("primary", "m-sam", { displayName: "Licensed" })).status, 200);
 		assert.equal((await f.patch("sam", "m-sales", { displayName: "My Sales" })).status, 200);
 	}
 });
-
 test("administrators can manage aliases within the mailbox's domain-owner scope", async t => {
 	const f = await fixture(t);
 	const path = "/api/mailboxes/m-sam/aliases";
