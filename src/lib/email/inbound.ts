@@ -11,6 +11,8 @@ import type { RuleOutboundAction } from "@/lib/rules/engine";
 import { getSenderPolicy } from "@/lib/sender-policy/service";
 import type { SenderPolicy } from "@/lib/sender-policy/sender-policy-utils";
 import { applyDeliveryReport } from "@/lib/email/delivery-report";
+import { storeAttachmentTexts } from "@/lib/email/attachment-text";
+import { indexMessageBestEffort } from "@/lib/semantic/service";
 import { isThreadMuted } from "@/lib/mute/service";
 import { dispatchWebhooks } from "@/lib/email/webhooks";
 import { getMessageContactNames, upsertContactFromAddress } from "@/lib/contacts/service";
@@ -281,7 +283,19 @@ export async function processInboundMessage(
 		}).onConflictDoNothing().returning({ id: messages.id });
 		if (!inserted.length) return;
 
-		await storeMessageAttachments(env, messageId, parsed.attachments);
+		const storedAttachments = await storeMessageAttachments(env, messageId, parsed.attachments);
+		// Attachment search text and semantic embeddings are derived data:
+		// best-effort, never fail intake.
+		try {
+			await storeAttachmentTexts(db, storedAttachments, parsed.attachments);
+		} catch (error) {
+			console.error(`Attachment text extraction failed for ${messageId}`, error);
+		}
+		try {
+			await indexMessageBestEffort(db, env, decision.mailbox.mailboxId, messageId);
+		} catch (error) {
+			console.error(`Semantic indexing failed for ${messageId}`, error);
+		}
 		// Delivery reports update the matching Sent copy's delivery status; the
 		// DSN itself is stored as ordinary mail whatever the match does.
 		try {

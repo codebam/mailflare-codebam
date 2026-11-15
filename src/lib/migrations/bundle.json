@@ -899,6 +899,18 @@
       ]
     },
     {
+      "name": "0092_attachment_text_embeddings.sql",
+      "statements": [
+        "CREATE TABLE `attachment_texts` (\n\t`attachment_id` text PRIMARY KEY NOT NULL,\n\t`content` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`attachment_id`) REFERENCES `message_attachments`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE VIRTUAL TABLE `attachment_text_fts` USING fts5(\n\t`content`,\n\tcontent='attachment_texts',\n\tcontent_rowid='rowid',\n\ttokenize='unicode61 remove_diacritics 2'\n);",
+        "CREATE TRIGGER `attachment_text_fts_ai` AFTER INSERT ON `attachment_texts` BEGIN\n\tINSERT INTO `attachment_text_fts`(`rowid`, `content`)\n\tVALUES (new.`rowid`, new.`content`);\nEND;",
+        "CREATE TRIGGER `attachment_text_fts_ad` AFTER DELETE ON `attachment_texts` BEGIN\n\tINSERT INTO `attachment_text_fts`(`attachment_text_fts`, `rowid`, `content`)\n\tVALUES ('delete', old.`rowid`, old.`content`);\nEND;",
+        "CREATE TRIGGER `attachment_text_fts_au` AFTER UPDATE OF `content` ON `attachment_texts` BEGIN\n\tINSERT INTO `attachment_text_fts`(`attachment_text_fts`, `rowid`, `content`)\n\tVALUES ('delete', old.`rowid`, old.`content`);\n\tINSERT INTO `attachment_text_fts`(`rowid`, `content`)\n\tVALUES (new.`rowid`, new.`content`);\nEND;",
+        "INSERT INTO `attachment_text_fts`(`attachment_text_fts`) VALUES ('rebuild');",
+        "CREATE TABLE `message_embeddings` (\n\t`message_id` text PRIMARY KEY NOT NULL,\n\t`model` text NOT NULL,\n\t`content_hash` text NOT NULL,\n\t`embedding` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade\n);"
+      ]
+    },
+    {
       "name": "0092_calendar_invite_complete.sql",
       "statements": [
         "ALTER TABLE `calendar_events` ADD `repeat_interval` integer NOT NULL DEFAULT 1;",

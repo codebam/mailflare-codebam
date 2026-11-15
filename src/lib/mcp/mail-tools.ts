@@ -8,6 +8,7 @@ import { listSenderPolicies, removeSenderPolicy, setSenderPolicy } from "@/lib/s
 import { isSenderPolicy } from "@/lib/sender-policy/sender-policy-utils";
 import { exportEmail } from "@/lib/eml-export/service";
 import { getMailboxStorage } from "@/lib/storage/service";
+import { resolveEmbedder, semanticSearch, SEMANTIC_NOT_CONFIGURED, SEMANTIC_SEARCH_LIMIT_MAX } from "@/lib/semantic/service";
 import type { McpPrincipal } from "./types";
 
 function output(value: unknown, isError = false) {
@@ -66,4 +67,10 @@ export function registerMailMcpTools(server: McpServer, principal: McpPrincipal,
 		}));
 	server.registerTool("get_storage", { description: "The mailbox's storage footprint: stored message count and attachment count/bytes. Read-only.", inputSchema: z.object({ mailboxId: z.string() }), annotations: { readOnlyHint: true, openWorldHint: false } }, async ({ mailboxId }) =>
 		guard(mailboxId, false, "get_storage", async (db) => getMailboxStorage(db, mailboxId)));
+	server.registerTool("semantic_search", { description: "Semantic (meaning-based) search over one mailbox's stored mail. Use it when the exact words are unknown — it finds messages by what they are about rather than by keyword. Read-only. Needs the mailbox's semantic index; answers a not-configured error when the deployment has none.", inputSchema: z.object({ mailboxId: z.string(), query: z.string().min(1), limit: z.number().int().min(1).max(SEMANTIC_SEARCH_LIMIT_MAX).optional() }), annotations: { readOnlyHint: true, openWorldHint: false } }, async ({ mailboxId, query, limit }) =>
+		guard(mailboxId, false, "semantic_search", async (db) => {
+			const embedder = resolveEmbedder(env);
+			if (!embedder) throw new Error(SEMANTIC_NOT_CONFIGURED);
+			return { results: await semanticSearch(db, mailboxId, query, embedder, limit) };
+		}));
 }

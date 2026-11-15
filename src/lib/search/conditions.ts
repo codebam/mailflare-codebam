@@ -1,8 +1,8 @@
 import { and, eq, exists, gte, isNull, lt, ne, not, or, sql } from "drizzle-orm";
 import type { AnyColumn, SQL } from "drizzle-orm";
-import { messageAttachments, messages } from "@/db/schema";
+import { attachmentTexts, messageAttachments, messages } from "@/db/schema";
 import { schemaDialect } from "@/db/dialect";
-import { buildFtsMatch, parseSearchQuery, tokenizeSearchText } from "./query-utils";
+import { buildAttachmentFtsMatch, buildFtsMatch, parseSearchQuery, tokenizeSearchText } from "./query-utils";
 import type { ParsedSearchQuery } from "./types";
 
 /** `!` is the escape character because it needs no escaping itself in either SQL string syntax. */
@@ -25,6 +25,9 @@ function buildLikeConditions(parsed: ParsedSearchQuery): SQL[] {
 			contains(messages.ccAddr, token.term),
 			contains(messages.textBody, token.term),
 			and(sql`${messages.textBody} is null`, contains(messages.htmlBody, token.term)),
+			exists(
+				sql`(SELECT 1 FROM ${attachmentTexts} INNER JOIN ${messageAttachments} ON ${messageAttachments.id} = ${attachmentTexts.attachmentId} WHERE ${messageAttachments.messageId} = ${messages.id} AND ${contains(attachmentTexts.content, token.term)})`,
+			),
 		)!;
 		conditions.push(token.negate ? not(match) : match);
 	}
@@ -49,8 +52,15 @@ export function buildSearchConditions(raw: string, timeZone = "UTC"): SQL[] {
 
 	if (schemaDialect() === "sqlite") {
 		const { match, exclude } = buildFtsMatch(parsed);
-		if (match) {
+		const attachmentMatch = buildAttachmentFtsMatch(parsed);
+		// Raw identifiers inside the subquery: only the MATCH term is dynamic.
+		const attachmentSubquery = sql.raw(`SELECT ma.message_id FROM attachment_text_fts INNER JOIN attachment_texts at ON at.rowid = attachment_text_fts.rowid INNER JOIN message_attachments ma ON ma.id = at.attachment_id WHERE attachment_text_fts MATCH `);
+		if (match && attachmentMatch) {
+			conditions.push(sql`(${messages}.rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ${match}) OR ${messages.id} IN (${attachmentSubquery} ${attachmentMatch}))`);
+		} else if (match) {
 			conditions.push(sql`${messages}.rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ${match})`);
+		} else if (attachmentMatch) {
+			conditions.push(sql`${messages.id} IN (${attachmentSubquery} ${attachmentMatch})`);
 		} else if (exclude) {
 			conditions.push(sql`${messages}.rowid NOT IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ${exclude})`);
 		}
