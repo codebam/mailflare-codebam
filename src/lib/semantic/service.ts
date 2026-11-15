@@ -17,7 +17,7 @@ export const SEMANTIC_REINDEX_BATCH_MAX = 25;
 /** Plain-text characters of one message (or query) sent to the model. */
 export const MAX_EMBEDDING_SOURCE_CHARS = 6000;
 export const SEMANTIC_SNIPPET_CHARS = 300;
-export const SEMANTIC_EMBEDDING_MODEL = "@cf/baai/bge-base-en-v1.5";
+export const SEMANTIC_EMBEDDING_MODEL = "@cf/qwen/qwen3-embedding-0.6b";
 
 export type Embedder = {
 	model: string;
@@ -29,9 +29,10 @@ export function resolveEmbedder(env: unknown): Embedder | null {
 	const record = (env ?? {}) as Record<string, unknown>;
 	const ai = record.AI as { run?: (model: string, input: unknown) => Promise<{ data: number[][] }> } | undefined;
 	if (ai?.run) {
+		const model = typeof record.AI_EMBEDDING_MODEL === "string" && record.AI_EMBEDDING_MODEL ? record.AI_EMBEDDING_MODEL : SEMANTIC_EMBEDDING_MODEL;
 		return {
-			model: SEMANTIC_EMBEDDING_MODEL,
-			embed: async (texts) => (await ai.run!(SEMANTIC_EMBEDDING_MODEL, { text: texts })).data,
+			model,
+			embed: async (texts) => (await ai.run!(model, { text: texts })).data,
 		};
 	}
 	const baseUrl = typeof record.AI_BASE_URL === "string" ? record.AI_BASE_URL.replace(/\/$/, "") : null;

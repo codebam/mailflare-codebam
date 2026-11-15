@@ -43,7 +43,7 @@ export async function extractInboundItems(
 	messageId: string,
 	input: { sender: string; subject: string | null; body: string | null; date?: Date },
 ): Promise<number> {
-	const model = resolveChatModel(env);
+	const model = resolveChatModel(env, "AI_EXTRACT_MODEL");
 	if (!model) return 0;
 	const body = (input.body ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_EXTRACT_BODY_CHARS);
 	if (!body && !input.subject) return 0;
