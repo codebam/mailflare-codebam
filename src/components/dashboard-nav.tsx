@@ -13,6 +13,7 @@ import {
   FileText,
   Folder,
   Inbox,
+  ListChecks,
   MailPlus,
   Plus,
   Send,
@@ -64,6 +65,7 @@ const links = [
   { href: "/snoozed", labelKey: "navigation.snoozed", icon: Clock, preloadMessages: true },
   { href: "/sent", labelKey: "navigation.sent", icon: Send, preloadMessages: true },
   { href: "/scheduled", labelKey: "navigation.scheduled", icon: CalendarClock, preloadMessages: true },
+  { href: "/items", labelKey: "navigation.items", icon: ListChecks },
   { href: "/drafts", labelKey: "navigation.drafts", icon: FileText, preloadMessages: true },
   {
     href: "/archived",
