@@ -15,6 +15,14 @@ import type { McpPrincipal } from "./types";
 import { registerAdminMcpTools } from "./admin-tools";
 import { registerOrganizeMcpTools } from "./organize-tools";
 import { registerMailMcpTools } from "./mail-tools";
+import { registerCompatMailTools } from "./compat-mail";
+import { registerCompatActionTools } from "./compat-actions";
+
+/**
+ * Tools the agentic-inbox compat facade registers under the same names with
+ * the ported contracts; the native registrations are skipped for these.
+ */
+const COMPAT_OVERRIDES = new Set(["list_emails", "get_email", "get_thread", "search_emails", "mark_email_read", "move_email", "draft_reply", "discard_draft"]);
 import { CALENDAR_TOOL_NAMES, calendarToolDescriptions, calendarToolSchemas, calendarToolScope, runCalendarTool } from "@/lib/calendar/tools";
 
 const scopeByTool: Record<EmailToolName, string> = {
@@ -56,7 +64,7 @@ export function createMailflareMcpHandler(env: CloudflareEnv, principal: McpPrin
 			return output(accessible.filter((row) => principal.mailboxIds.includes(row.id)).map(({ id, localPart, hostname, displayName }) => ({ id, address: `${localPart}@${hostname}`, displayName })));
 		});
 		for (const name of EMAIL_TOOL_NAMES) {
-			if (name === "edit_draft" || name === "review_draft_send") continue;
+			if (name === "edit_draft" || name === "review_draft_send" || COMPAT_OVERRIDES.has(name)) continue;
 			server.registerTool(name, { description: emailToolDescriptions[name], inputSchema: z.object({ mailboxId: z.string().min(1), ...emailToolSchemas[name].shape }) }, async (args) => {
 				if (!principal.scopes.includes(scopeByTool[name]) || !principal.mailboxIds.includes(args.mailboxId)) return output({ error: "Permission denied" }, true);
 				audit(principal, name, args.mailboxId);
@@ -64,12 +72,7 @@ export function createMailflareMcpHandler(env: CloudflareEnv, principal: McpPrin
 				catch (error) { return output({ error: error instanceof Error ? error.message : "Tool failed" }, true); }
 			});
 		}
-		server.registerTool("update_draft", { description: emailToolDescriptions.edit_draft, inputSchema: z.object({ mailboxId: z.string(), ...emailToolSchemas.edit_draft.shape }) }, async (args) => {
-			const { mailboxId } = args;
-			if (!principal.scopes.includes("mcp:draft") || !principal.mailboxIds.includes(mailboxId)) return output({ error: "Permission denied" }, true);
-			try { return output(await editAgentDraft({ env, user: principal.user, mailboxId, origin: "mcp" }, args)); }
-			catch (error) { return output({ error: error instanceof Error ? error.message : "Draft update failed" }, true); }
-		});
+		// update_draft is registered by the compat facade with the agentic-inbox contract.
 		server.registerTool("request_send", { description: "Request human review of a draft; this never sends", inputSchema: z.object({ mailboxId: z.string(), draftId: z.string(), expectedRevision: z.number().int().positive() }) }, async ({ mailboxId, draftId, expectedRevision }) => {
 			if (!principal.scopes.includes("mcp:request-send") || !principal.mailboxIds.includes(mailboxId)) return output({ error: "Permission denied" }, true);
 			const [draft] = await getDb(env).select({ mailboxId: messages.mailboxId }).from(messages).where(eq(messages.id, draftId)).limit(1);
@@ -234,6 +237,8 @@ export function createMailflareMcpHandler(env: CloudflareEnv, principal: McpPrin
 		}
 		registerOrganizeMcpTools(server, principal, env);
 		registerMailMcpTools(server, principal, env);
+		registerCompatMailTools(server, principal, env);
+		registerCompatActionTools(server, principal, env);
 		registerAdminMcpTools(server, principal, baseUrl, authorization);
 		return server;
 	}, { responseMode: "json" });
