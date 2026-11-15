@@ -355,6 +355,12 @@ export const messages = sqliteTable(
 		inviteResponse: text("invite_response"),
 		/** Category id stamped by rules or the AI classifier; null means uncategorized. */
 		category: text("category"),
+		/** Original SMTP envelope recipient, preserved separately from the visible To header. */
+		deliveredTo: text("delivered_to"),
+		/** Delivery report outcome for a Sent copy: failed, delayed or delivered; null until a DSN matches. */
+		deliveryStatus: text("delivery_status"),
+		/** Provider detail from the matched delivery report (diagnostic code / status). */
+		deliveryDetail: text("delivery_detail"),
 		spamScore: integer("spam_score"),
 		spamVerdict: text("spam_verdict", { enum: ["inbox", "suspicious", "spam"] }),
 		spamSignals: text("spam_signals"),
@@ -799,6 +805,40 @@ export const items = sqliteTable(
 	(t) => [
 		index("items_mailbox_status_idx").on(t.mailboxId, t.status),
 		index("items_mailbox_due_idx").on(t.mailboxId, t.dueAt),
+	],
+);
+
+/**
+ * Per-mailbox sender allow/block policy, evaluated before the classifier.
+ * Addresses are stored trimmed + lowercased. Block files mail into Spam
+ * (never drops it); allow skips the spam question.
+ */
+export const senderPolicies = sqliteTable(
+	"sender_policies",
+	{
+		id: text("id").primaryKey(),
+		mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
+		address: text("address").notNull(),
+		policy: text("policy", { enum: ["allow", "block"] }).notNull(),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+	},
+	(t) => [
+		uniqueIndex("sender_policies_mailbox_address_idx").on(t.mailboxId, t.address),
+	],
+);
+
+/** One row per rule-driven outbound send, for the 24h per-sender dedup guards. */
+export const ruleOutboundLog = sqliteTable(
+	"rule_outbound_log",
+	{
+		id: text("id").primaryKey(),
+		mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
+		kind: text("kind", { enum: ["forward", "auto_reply"] }).notNull(),
+		sender: text("sender").notNull(),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+	},
+	(t) => [
+		index("rule_outbound_log_mailbox_sender_idx").on(t.mailboxId, t.sender, t.createdAt),
 	],
 );
 

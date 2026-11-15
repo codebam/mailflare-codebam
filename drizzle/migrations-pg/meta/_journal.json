@@ -120,6 +120,13 @@
       "when": 1794769848220,
       "tag": "0014_actions_categories_items",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794770939548,
+      "tag": "0015_sender_policy_delivery",
+      "breakpoints": true
     }
   ]
 }
