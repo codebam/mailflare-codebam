@@ -421,6 +421,17 @@
         "CREATE TABLE `message_embeddings` (\n\t`message_id` varchar(191) NOT NULL,\n\t`model` longtext NOT NULL,\n\t`content_hash` longtext NOT NULL,\n\t`embedding` longtext NOT NULL,\n\t`created_at` bigint NOT NULL,\n\tCONSTRAINT `message_embeddings_id` PRIMARY KEY(`message_id`)\n);",
         "ALTER TABLE `message_embeddings` ADD CONSTRAINT `message_embeddings_message_id_messages_id_fk` FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON DELETE cascade ON UPDATE no action;"
       ]
+    },
+    {
+      "name": "0017_access_tokens.sql",
+      "statements": [
+        "CREATE TABLE `access_tokens` (\n\t`id` varchar(191) NOT NULL,\n\t`token_hash` varchar(191) NOT NULL,\n\t`kind` varchar(64) NOT NULL,\n\t`user_id` varchar(191) NOT NULL,\n\t`mailbox_id` varchar(191),\n\t`name` longtext NOT NULL,\n\t`scopes` longtext NOT NULL,\n\t`created_at` bigint NOT NULL,\n\t`last_used_at` bigint,\n\tCONSTRAINT `access_tokens_id` PRIMARY KEY(`id`)\n);",
+        "ALTER TABLE `access_tokens` ADD CONSTRAINT `access_tokens_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "ALTER TABLE `access_tokens` ADD CONSTRAINT `access_tokens_mailbox_id_mailboxes_id_fk` FOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "CREATE UNIQUE INDEX `access_tokens_token_hash_idx` ON `access_tokens` (`token_hash`);",
+        "CREATE INDEX `access_tokens_user_idx` ON `access_tokens` (`user_id`);",
+        "CREATE INDEX `access_tokens_mailbox_idx` ON `access_tokens` (`mailbox_id`);"
+      ]
     }
   ]
 }

@@ -134,6 +134,13 @@
       "when": 1794771518520,
       "tag": "0016_attachment_text_embeddings",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794772848405,
+      "tag": "0017_access_tokens",
+      "breakpoints": true
     }
   ]
 }
