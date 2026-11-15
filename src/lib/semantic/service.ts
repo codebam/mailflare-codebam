@@ -13,7 +13,10 @@ import { messageEmbeddings, messages } from "@/db/schema";
 
 export const SEMANTIC_NOT_CONFIGURED = "Semantic search is not configured: set an AI provider (Workers AI binding or AI_BASE_URL/AI_API_KEY) and reindex.";
 export const SEMANTIC_SEARCH_LIMIT_MAX = 20;
-export const SEMANTIC_REINDEX_BATCH_MAX = 25;
+// Workers AI caps the total input per embedding request. The qwen3 embedder
+// accepts long per-text inputs (8192 tokens), so a large batch of full-length
+// messages overflows that cap ("3030: input too big"); 8 stays safely under it.
+export const SEMANTIC_REINDEX_BATCH_MAX = 8;
 /** Plain-text characters of one message (or query) sent to the model. */
 export const MAX_EMBEDDING_SOURCE_CHARS = 6000;
 export const SEMANTIC_SNIPPET_CHARS = 300;
