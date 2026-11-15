@@ -628,6 +628,41 @@ export const conversationNotes = sqliteTable(
 	],
 );
 
+/**
+ * Per-mailbox labels, applied to individual messages through message_labels.
+ * `nameKey` is the lowercased name: a unique index on it keeps the
+ * case-insensitive uniqueness portable across SQLite, PostgreSQL and MySQL.
+ */
+export const labels = sqliteTable(
+	"labels",
+	{
+		id: text("id").primaryKey(),
+		mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		nameKey: text("name_key").notNull(),
+		color: text("color"),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+	},
+	(t) => [
+		uniqueIndex("labels_mailbox_name_idx").on(t.mailboxId, t.nameKey),
+	],
+);
+
+/** Which labels are on a message; both sides cascade so deletes detach cleanly. */
+export const messageLabels = sqliteTable(
+	"message_labels",
+	{
+		id: text("id").primaryKey(),
+		messageId: text("message_id").notNull().references(() => messages.id, { onDelete: "cascade" }),
+		labelId: text("label_id").notNull().references(() => labels.id, { onDelete: "cascade" }),
+		createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+	},
+	(t) => [
+		uniqueIndex("message_labels_message_label_idx").on(t.messageId, t.labelId),
+		index("message_labels_label_idx").on(t.labelId),
+	],
+);
+
 export const emailTemplates = sqliteTable(
 	"email_templates",
 	{

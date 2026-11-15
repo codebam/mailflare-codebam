@@ -351,6 +351,19 @@
         "ALTER TABLE `app_settings` ADD `auto_update_dispatched_version` text;",
         "ALTER TABLE `app_settings` ADD `auto_update_channel` varchar(16) NOT NULL DEFAULT 'release';"
       ]
+    },
+    {
+      "name": "0014_labels.sql",
+      "statements": [
+        "CREATE TABLE `labels` (\n\t`id` varchar(191) NOT NULL,\n\t`mailbox_id` varchar(191) NOT NULL,\n\t`name` longtext NOT NULL,\n\t`name_key` varchar(191) NOT NULL,\n\t`color` longtext,\n\t`created_at` bigint NOT NULL,\n\tCONSTRAINT `labels_id` PRIMARY KEY(`id`)\n);",
+        "ALTER TABLE `labels` ADD CONSTRAINT `labels_mailbox_id_mailboxes_id_fk` FOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "CREATE UNIQUE INDEX `labels_mailbox_name_idx` ON `labels` (`mailbox_id`,`name_key`);",
+        "CREATE TABLE `message_labels` (\n\t`id` varchar(191) NOT NULL,\n\t`message_id` varchar(191) NOT NULL,\n\t`label_id` varchar(191) NOT NULL,\n\t`created_at` bigint NOT NULL,\n\tCONSTRAINT `message_labels_id` PRIMARY KEY(`id`)\n);",
+        "ALTER TABLE `message_labels` ADD CONSTRAINT `message_labels_message_id_messages_id_fk` FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "ALTER TABLE `message_labels` ADD CONSTRAINT `message_labels_label_id_labels_id_fk` FOREIGN KEY (`label_id`) REFERENCES `labels`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "CREATE UNIQUE INDEX `message_labels_message_label_idx` ON `message_labels` (`message_id`,`label_id`);",
+        "CREATE INDEX `message_labels_label_idx` ON `message_labels` (`label_id`);"
+      ]
     }
   ]
 }
