@@ -217,7 +217,7 @@ export function registerCompatMailTools(server: McpServer, principal: McpPrincip
 
 	server.registerTool("summarize_thread", { description: "Summarize a conversation thread with an AI model: participants, decisions, open questions, action items and the thread's current state. Built per request — nothing is stored, cached or sent.", inputSchema: z.object({ mailboxId: z.string(), threadId: z.string() }), annotations: { readOnlyHint: true, openWorldHint: false } }, async ({ mailboxId, threadId }) =>
 		guard(mailboxId, "summarize_thread", async (db) => {
-			const model = resolveChatModel(env);
+			const model = resolveChatModel(env, "AI_SUMMARY_MODEL");
 			if (!model) throw new Error(AI_NOT_CONFIGURED);
 			const [anchor] = await db.select().from(messages).where(and(eq(messages.mailboxId, mailboxId), or(eq(messages.threadId, threadId), eq(messages.id, threadId)))).limit(1);
 			if (!anchor) throw new Error("Thread not found");

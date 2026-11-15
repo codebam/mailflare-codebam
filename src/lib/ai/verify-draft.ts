@@ -33,7 +33,7 @@ export function stripDraftCommentary(body: string): string {
 export async function cleanDraftBody(env: unknown, body: string): Promise<string> {
 	const locally = stripDraftCommentary(body);
 	if (!locally) return body;
-	const model = resolveChatModel(env);
+	const model = resolveChatModel(env, "AI_DRAFT_MODEL");
 	if (!model) return locally;
 	if (!/^(?:here|sure|certainly|of course|draft|reply|below|as requested)\b/i.test(locally.slice(0, 40))) return locally;
 	try {
