@@ -642,6 +642,13 @@
     {
       "idx": 91,
       "version": "6",
+      "when": 1794773194766,
+      "tag": "0094_ai_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "6",
       "when": 1795027679014,
       "tag": "0094_promotions",
       "breakpoints": true

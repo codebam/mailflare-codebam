@@ -173,6 +173,13 @@
     {
       "idx": 24,
       "version": "7",
+      "when": 1794773194766,
+      "tag": "0018_ai_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
       "when": 1795027623043,
       "tag": "0018_promotions",
       "breakpoints": true

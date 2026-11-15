@@ -1,6 +1,6 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { getDb } from "@/db";
-import { messages, outboundJobs, users } from "@/db/schema";
+import { categories, mailboxAgentSettings, messages, outboundJobs, users } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { buildSnippet, parseRawMime } from "@/lib/email/parse";
 import { boundParsedEmail } from "@/lib/email/inbound-limits";
@@ -13,6 +13,8 @@ import type { SenderPolicy } from "@/lib/sender-policy/sender-policy-utils";
 import { applyDeliveryReport } from "@/lib/email/delivery-report";
 import { storeAttachmentTexts } from "@/lib/email/attachment-text";
 import { indexMessageBestEffort } from "@/lib/semantic/service";
+import { classifyInbound, scanPromptInjection } from "@/lib/ai/classify";
+import { extractInboundItems } from "@/lib/ai/extract-items";
 import { isThreadMuted } from "@/lib/mute/service";
 import { dispatchWebhooks } from "@/lib/email/webhooks";
 import { getMessageContactNames, upsertContactFromAddress } from "@/lib/contacts/service";
@@ -195,6 +197,39 @@ export async function processInboundMessage(
 			console.error(`Spam analysis failed for ${messageId}`, error);
 		}
 	}
+	// AI classification (ported from agentic-inbox's Clef-flash step onto the
+	// chat seam): spam second opinion, category suggestion, and the
+	// reply-expected + injection gates for auto-drafting. Best-effort — a
+	// model failure never changes delivery.
+	let replyExpected = true;
+	let extractItemsEnabled = true;
+	const [agentSettings] = await db
+		.select({ classifyEnabled: mailboxAgentSettings.classifyEnabled, extractItemsEnabled: mailboxAgentSettings.extractItemsEnabled })
+		.from(mailboxAgentSettings)
+		.where(eq(mailboxAgentSettings.mailboxId, decision.mailbox.mailboxId))
+		.limit(1);
+	if (agentSettings) extractItemsEnabled = agentSettings.extractItemsEnabled;
+	if ((agentSettings?.classifyEnabled ?? true) && destination.status === "received" && !rulesRouted && senderPolicy === null) {
+		try {
+			const categoryRows = await db.select({ name: categories.name }).from(categories).where(inArray(categories.mailboxId, [decision.mailbox.mailboxId, ""]));
+			const classification = await classifyInbound(env, { sender: fromAddr, subject: parsed.subject, body: parsed.text ?? parsed.html, categories: categoryRows.map((row) => row.name) });
+			if (classification) {
+				if (classification.spam && spamAnalysis?.verdict !== "spam") {
+					spamAnalysis = {
+						score: 90,
+						verdict: "spam",
+						signals: [{ id: "ai_classifier_spam", score: 90, reason: "AI classifier marked this message as spam" }],
+						fingerprint: spamAnalysis?.fingerprint ?? "",
+					};
+				}
+				if (!ruleCategory && classification.category) ruleCategory = classification.category;
+				replyExpected = classification.replyExpected;
+				if (replyExpected && await scanPromptInjection(env, `${parsed.subject ?? ""}\n${parsed.text ?? parsed.html ?? ""}`)) replyExpected = false;
+			}
+		} catch (error) {
+			console.error(`AI classification failed for ${messageId}`, error);
+		}
+	}
 	if (destination.status === "spam" && spamAnalysis) {
 		spamAnalysis = {
 			score: 100,
@@ -296,6 +331,13 @@ export async function processInboundMessage(
 		} catch (error) {
 			console.error(`Semantic indexing failed for ${messageId}`, error);
 		}
+		if (extractItemsEnabled && status === "received") {
+			try {
+				await extractInboundItems(env, db, decision.mailbox.mailboxId, messageId, { sender: fromAddr, subject: parsed.subject, body: parsed.text ?? parsed.html, date: parsed.date ?? undefined });
+			} catch (error) {
+				console.error(`Item extraction failed for ${messageId}`, error);
+			}
+		}
 		// Delivery reports update the matching Sent copy's delivery status; the
 		// DSN itself is stored as ordinary mail whatever the match does.
 		try {
@@ -382,7 +424,7 @@ export async function processInboundMessage(
 		});
 	}
 	try {
-		await scheduleAutoDraft(env, { mailboxId: decision.mailbox.mailboxId, sourceMessageId: messageId, ownerUserId: decision.mailbox.userId, sender: fromAddr, headers: payload.headers, status, folderId, spamVerdict: spamAnalysis?.verdict, spamAnalysisError });
+		await scheduleAutoDraft(env, { mailboxId: decision.mailbox.mailboxId, sourceMessageId: messageId, ownerUserId: decision.mailbox.userId, sender: fromAddr, headers: payload.headers, status, folderId, spamVerdict: spamAnalysis?.verdict, spamAnalysisError, replyExpected });
 	} catch (error) { console.error("Auto-draft scheduling failed", error); }
 	// Operator-authored rule outbound actions (forward / auto-reply), behind the
 	// loop and quota guards; never for spam or trash.

@@ -506,6 +506,13 @@
       ]
     },
     {
+      "name": "0018_ai_settings.sql",
+      "statements": [
+        "ALTER TABLE \"mailbox_agent_settings\" ADD COLUMN \"classify_enabled\" boolean DEFAULT true NOT NULL;",
+        "ALTER TABLE \"mailbox_agent_settings\" ADD COLUMN \"extract_items_enabled\" boolean DEFAULT true NOT NULL;"
+      ]
+    },
+    {
       "name": "0018_promotions.sql",
       "statements": [
         "CREATE TABLE \"mailbox_promotion_settings\" (\n\t\"mailbox_id\" text PRIMARY KEY NOT NULL,\n\t\"mode\" text DEFAULT 'off' NOT NULL,\n\t\"backfill_status\" text DEFAULT 'idle' NOT NULL,\n\t\"backfill_cursor\" text,\n\t\"backfill_scanned\" bigint DEFAULT 0 NOT NULL,\n\t\"updated_at\" bigint NOT NULL\n);",
