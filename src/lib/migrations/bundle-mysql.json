@@ -412,6 +412,15 @@
         "ALTER TABLE `messages` ADD COLUMN `delivery_status` longtext;",
         "ALTER TABLE `messages` ADD COLUMN `delivery_detail` longtext;"
       ]
+    },
+    {
+      "name": "0016_attachment_text_embeddings.sql",
+      "statements": [
+        "CREATE TABLE `attachment_texts` (\n\t`attachment_id` varchar(191) NOT NULL,\n\t`content` longtext NOT NULL,\n\t`created_at` bigint NOT NULL,\n\tCONSTRAINT `attachment_texts_id` PRIMARY KEY(`attachment_id`)\n);",
+        "ALTER TABLE `attachment_texts` ADD CONSTRAINT `attachment_texts_attachment_id_message_attachments_id_fk` FOREIGN KEY (`attachment_id`) REFERENCES `message_attachments`(`id`) ON DELETE cascade ON UPDATE no action;",
+        "CREATE TABLE `message_embeddings` (\n\t`message_id` varchar(191) NOT NULL,\n\t`model` longtext NOT NULL,\n\t`content_hash` longtext NOT NULL,\n\t`embedding` longtext NOT NULL,\n\t`created_at` bigint NOT NULL,\n\tCONSTRAINT `message_embeddings_id` PRIMARY KEY(`message_id`)\n);",
+        "ALTER TABLE `message_embeddings` ADD CONSTRAINT `message_embeddings_message_id_messages_id_fk` FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON DELETE cascade ON UPDATE no action;"
+      ]
     }
   ]
 }

@@ -101,6 +101,10 @@ const mcpEml = await call("export_email", { mailboxId, emailId: "spike-message-1
 step("MCP export_email", !mcpEml.isError && mcpEml.body?.eml?.includes("Subject: Spike test"), JSON.stringify(mcpEml.body)?.slice(0, 80));
 const mcpStorage = await call("get_storage", { mailboxId }, 7);
 step("MCP get_storage", !mcpStorage.isError && mcpStorage.body?.messages >= 1, JSON.stringify(mcpStorage.body)?.slice(0, 100));
+const mcpSemantic = await call("semantic_search", { mailboxId, query: "spike" }, 8);
+step("MCP semantic_search not-configured contract", mcpSemantic.isError === true && /not configured/i.test(mcpSemantic.body?.error ?? ""), JSON.stringify(mcpSemantic.body)?.slice(0, 120));
+const semanticRest = await api("POST", "/api/semantic/search", { mailboxId, query: "spike" });
+step("REST semantic not-configured 503", semanticRest.status === 503 && semanticRest.json?.code === "SEMANTIC_NOT_CONFIGURED", `status=${semanticRest.status}`);
 
 const failed = results.filter((result) => !result.ok);
 console.log(`\n${results.length - failed.length}/${results.length} steps passed`);

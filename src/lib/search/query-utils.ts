@@ -141,3 +141,23 @@ export function buildFtsMatch(parsed: ParsedSearchQuery): string | null {
 	const base = positives.length > 0 ? positives.join(" AND ") : `${ftsString("")}*`;
 	return negatives.length > 0 ? `(${base}) NOT (${negatives.join(" OR ")})` : base;
 }
+
+/**
+ * Free-text-only MATCH for the attachment text index, which has a single
+ * `content` column: field operators (subject:, from:, to:) do not apply to
+ * attachment text and are left to the messages index.
+ */
+export function buildAttachmentFtsMatch(parsed: ParsedSearchQuery): string | null {
+	const parts: string[] = [];
+	for (const token of tokenizeSearchText(parsed.text)) {
+		const expr = ftsTerm(token.term, token.phrase);
+		if (!expr) continue;
+		parts.push(token.negate ? `NOT ${expr}` : expr);
+	}
+	if (parts.length === 0) return null;
+	const positives = parts.filter((part) => !part.startsWith("NOT "));
+	const negatives = parts.filter((part) => part.startsWith("NOT ")).map((part) => part.slice(4));
+	if (positives.length === 0) return null;
+	const base = positives.join(" AND ");
+	return negatives.length > 0 ? `(${base}) NOT (${negatives.join(" OR ")})` : base;
+}

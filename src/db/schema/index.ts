@@ -842,6 +842,34 @@ export const ruleOutboundLog = sqliteTable(
 	],
 );
 
+/**
+ * Text extracted from attachments for search. SQLite keeps an FTS5 index
+ * (attachment_text_fts, migration 0092) in step via triggers; other dialects
+ * fall back to LIKE over this table.
+ */
+export const attachmentTexts = sqliteTable("attachment_texts", {
+	attachmentId: text("attachment_id")
+		.primaryKey()
+		.references(() => messageAttachments.id, { onDelete: "cascade" }),
+	content: text("content").notNull(),
+	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+});
+
+/**
+ * Semantic-search bookkeeping: one row per embedded message with the model id
+ * and a content hash, so a reindex can list what is missing and skip
+ * unchanged mail. The embedding itself is a JSON array of numbers.
+ */
+export const messageEmbeddings = sqliteTable("message_embeddings", {
+	messageId: text("message_id")
+		.primaryKey()
+		.references(() => messages.id, { onDelete: "cascade" }),
+	model: text("model").notNull(),
+	contentHash: text("content_hash").notNull(),
+	embedding: text("embedding").notNull(),
+	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+});
+
 export const emailTemplates = sqliteTable(
 	"email_templates",
 	{
