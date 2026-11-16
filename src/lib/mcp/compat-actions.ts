@@ -200,8 +200,12 @@ export function registerCompatActionTools(server: McpServer, principal: McpPrinc
 			if (permanent) {
 				if (confirm !== true) throw new Error("Permanent deletion requires confirm=true");
 				await deleteMessageBlobs(env, db, [emailId]);
-				await db.delete(messages).where(eq(messages.id, emailId));
+				// Record while the message row still exists: agent_actions.message_id
+				// is a foreign key, so inserting after the delete would violate it.
+				// The delete then nulls message_id (ON DELETE SET NULL), keeping the
+				// log row with its subject and thread key.
 				await recordAction(db, mailboxId, { tool: "delete_email", messageId: emailId, subject: row.subject, threadKey: threadKeyOf(row), undoable: false });
+				await db.delete(messages).where(eq(messages.id, emailId));
 				return { emailId, deleted: true, permanent: true };
 			}
 			await db.update(messages).set({ status: "trash" }).where(eq(messages.id, emailId));
