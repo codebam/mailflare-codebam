@@ -37,7 +37,8 @@ export function AutomationRulesSettings() {
 	const mailboxId = selectedMailbox?.id ?? null;
 	const [rules, setRules] = useState<Rule[]>([]);
 	const [folders, setFolders] = useState<Folder[]>([]);
-	const [loading, setLoading] = useState(true);
+	const [loadedMailbox, setLoadedMailbox] = useState<string | null>();
+	const loading = loadedMailbox === undefined || loadedMailbox !== mailboxId;
 	const [error, setError] = useState<string | null>(null);
 	const [open, setOpen] = useState(false);
 	const [editing, setEditing] = useState<Rule | null>(null);
@@ -52,13 +53,12 @@ export function AutomationRulesSettings() {
 
 	const refresh = useCallback(() => {
 		if (!mailboxId) return;
-		setLoading(true);
 		void Promise.all([
 			apiGet<{ rules: Rule[] }>(`/api/rules?mailboxId=${encodeURIComponent(mailboxId)}`),
 			apiGet<{ folders: Folder[] }>(`/api/folders?mailboxId=${encodeURIComponent(mailboxId)}`),
 		]).then(([rulesBody, foldersBody]) => { setRules(rulesBody.rules); setFolders(foldersBody.folders); setError(null); })
 			.catch((cause) => setError(cause instanceof Error ? cause.message : "Failed to load rules"))
-			.finally(() => setLoading(false));
+			.finally(() => setLoadedMailbox(mailboxId));
 	}, [mailboxId]);
 	useEffect(() => { refresh(); }, [refresh]);
 

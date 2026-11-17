@@ -22,7 +22,8 @@ export function MailboxTemplatesSettings() {
 	const { selectedMailbox } = useSelectedMailbox();
 	const mailboxId = selectedMailbox?.id ?? null;
 	const [templates, setTemplates] = useState<Template[]>([]);
-	const [loading, setLoading] = useState(true);
+	const [loadedMailbox, setLoadedMailbox] = useState<string | null>();
+	const loading = loadedMailbox === undefined || loadedMailbox !== mailboxId;
 	const [error, setError] = useState<string | null>(null);
 	const [open, setOpen] = useState(false);
 	const [editing, setEditing] = useState<Template | null>(null);
@@ -33,11 +34,10 @@ export function MailboxTemplatesSettings() {
 
 	const refresh = useCallback(() => {
 		if (!mailboxId) return;
-		setLoading(true);
 		void apiGet<{ templates: Template[] }>(`/api/mailbox-templates?mailboxId=${encodeURIComponent(mailboxId)}`)
 			.then((result) => { setTemplates(result.templates); setError(null); })
 			.catch((cause) => setError(cause instanceof Error ? cause.message : "Failed to load templates"))
-			.finally(() => setLoading(false));
+			.finally(() => setLoadedMailbox(mailboxId));
 	}, [mailboxId]);
 	useEffect(() => { refresh(); }, [refresh]);
 

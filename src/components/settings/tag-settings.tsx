@@ -21,7 +21,8 @@ export function TagSettings({ kind }: { kind: "labels" | "categories" }) {
 	const { selectedMailbox } = useSelectedMailbox();
 	const mailboxId = selectedMailbox?.id ?? null;
 	const [rows, setRows] = useState<LabelRow[]>([]);
-	const [loading, setLoading] = useState(true);
+	const [loadedMailbox, setLoadedMailbox] = useState<string | null>();
+	const loading = loadedMailbox === undefined || loadedMailbox !== mailboxId;
 	const [error, setError] = useState<string | null>(null);
 	const [open, setOpen] = useState(false);
 	const [editing, setEditing] = useState<LabelRow | null>(null);
@@ -33,11 +34,10 @@ export function TagSettings({ kind }: { kind: "labels" | "categories" }) {
 	const basePath = kind === "labels" ? "/api/labels" : "/api/categories";
 	const refresh = useCallback(() => {
 		if (!mailboxId) return;
-		setLoading(true);
 		void apiGet<{ labels?: LabelRow[]; categories?: LabelRow[] }>(`${basePath}?mailboxId=${encodeURIComponent(mailboxId)}`)
 			.then((result) => { setRows(result.labels ?? result.categories ?? []); setError(null); })
 			.catch((cause) => setError(cause instanceof Error ? cause.message : "Failed to load"))
-			.finally(() => setLoading(false));
+			.finally(() => setLoadedMailbox(mailboxId));
 	}, [mailboxId, basePath]);
 	useEffect(() => { refresh(); }, [refresh]);
 
