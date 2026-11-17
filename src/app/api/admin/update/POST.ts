@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authorizeAdminRequest, dispatchUpdateWorkflow, getUpdateStatus } from "./utils";
+import { authorizeAdminRequest } from "./utils";
 import { isNodeRuntime } from "@/lib/runtime";
 import { hasValidSessionMutationOrigin } from "@/lib/auth/origin";
 
@@ -11,19 +11,7 @@ export async function POST(request: Request) {
 		return NextResponse.json({ error: "Self-hosted installs update by pulling the new container image and restarting." }, { status: 400 });
 	}
 
-	try {
-    // assume it's already passed
-		// const status = await getUpdateStatus(authorization.env);
-		// if (!status.available) {
-		// 	return NextResponse.json({ error: "Mailflare is already up to date", ...status }, { status: 409 });
-		// }
-
-		const dispatch = await dispatchUpdateWorkflow();
-
-		return NextResponse.json({ ok: true, ...dispatch }, { status: 202 });
-	} catch (error) {
-		const message = error instanceof Error ? error.message : "Could not trigger the update workflow";
-		const status = message.includes("must be configured") ? 503 : 502;
-		return NextResponse.json({ error: message }, { status });
-	}
+	// This fork stacks its own commits on upstream; the update workflow replaces
+	// the whole tree and would drop them, so dispatch is refused here as well.
+	return NextResponse.json({ error: "The in-app updater is disabled in this fork: it would replace the fork's changes with upstream. Sync by rebasing onto upstream and redeploying." }, { status: 400 });
 }
