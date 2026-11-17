@@ -15,6 +15,7 @@ interface CloudflareEnv {
 	INBOUND_QUEUE: Queue<import("./src/lib/email/inbound").InboundQueueMessage>;
 	AGENT_QUEUE?: Queue<{ kind: "agent.draft"; jobId: string }>;
 	AI?: Ai;
+	AI_CHAT_MODEL?: string;
 	AI_MODEL?: string;
 	AI_BASE_URL?: string;
 	AI_API_KEY?: string;

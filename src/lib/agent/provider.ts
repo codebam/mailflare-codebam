@@ -22,7 +22,8 @@ export async function getAgentProviderConfig(env: CloudflareEnv): Promise<AgentP
 	const [saved] = await getDb(env).select({ provider: appSettings.agentProvider, preset: appSettings.agentPreset, baseUrl: appSettings.agentBaseUrl, apiKey: appSettings.agentApiKey, model: appSettings.agentModel, rates: appSettings.agentModelRates }).from(appSettings).where(eq(appSettings.id, AGENT_SETTINGS_ID)).limit(1);
 	const rates = parseAgentModelRates(saved?.rates ?? null);
 	if (saved?.provider === "cloudflare") {
-		const models = parseAgentModelIds(saved.model || env.AI_MODEL || DEFAULT_CLOUDFLARE_MODEL);
+		// Agent chat and auto-draft share the chat seam's AI_CHAT_MODEL; AI_MODEL remains the legacy fallback.
+		const models = parseAgentModelIds(saved.model || env.AI_CHAT_MODEL || env.AI_MODEL || DEFAULT_CLOUDFLARE_MODEL);
 		return { provider: "cloudflare", preset: "openai", baseUrl: "", apiKey: "", model: models[0] || DEFAULT_CLOUDFLARE_MODEL, models, rates, source: "saved" };
 	}
 	if (saved?.provider === "compatible") {
@@ -31,7 +32,7 @@ export async function getAgentProviderConfig(env: CloudflareEnv): Promise<AgentP
 		const models = parseAgentModelIds(saved.model || "");
 		return { provider: "compatible", preset, baseUrl, apiKey: saved.apiKey || (env.AI_BASE_URL === baseUrl ? env.AI_API_KEY : "") || "", model: models[0] || "", models, rates, source: "saved" };
 	}
-	if (env.AI) { const model = env.AI_MODEL || DEFAULT_CLOUDFLARE_MODEL; return { provider: "cloudflare", preset: "openai", baseUrl: "", apiKey: "", model, models: [model], rates, source: "environment" }; }
+	if (env.AI) { const model = env.AI_CHAT_MODEL || env.AI_MODEL || DEFAULT_CLOUDFLARE_MODEL; return { provider: "cloudflare", preset: "openai", baseUrl: "", apiKey: "", model, models: [model], rates, source: "environment" }; }
 	if (env.AI_BASE_URL && env.AI_API_KEY) { const model = env.AI_MODEL || "gpt-4o-mini"; return { provider: "compatible", preset: "custom", baseUrl: env.AI_BASE_URL, apiKey: env.AI_API_KEY, model, models: [model], rates, source: "environment" }; }
 	return { provider: "cloudflare", preset: "openai", baseUrl: "", apiKey: "", model: DEFAULT_CLOUDFLARE_MODEL, models: [DEFAULT_CLOUDFLARE_MODEL], rates, source: "default" };
 }
