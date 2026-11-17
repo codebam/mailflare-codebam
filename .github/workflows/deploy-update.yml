@@ -50,6 +50,16 @@ jobs:
           upstream_ref="upstream/${upstream_branch}"
           echo "Replacing ${GITHUB_REF_NAME} with ${upstream_ref}."
 
+          # Tree replacement is only safe for verbatim upstream trackers: the
+          # current tree must be exactly some upstream commit's tree. A fork or
+          # any local edit would be dropped, so refuse and point at rebasing.
+          head_tree="$(git rev-parse "HEAD^{tree}")"
+          upstream_trees="$(git log "${upstream_ref}" --format=%T)"
+          if ! grep -q "^${head_tree}$" <<< "${upstream_trees}"; then
+            echo "::error::This repository's tree is not a pure upstream snapshot (it carries local changes or fork commits). Sync it by rebasing onto upstream; refusing to replace the tree."
+            exit 1
+          fi
+
           # Keep the installation repository's commit history while replacing
           # its complete tracked tree with the current upstream tree.
           git read-tree --reset -u "${upstream_ref}"
