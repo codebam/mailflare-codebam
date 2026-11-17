@@ -21,7 +21,8 @@ export function SavedSearchesSettings() {
 	const { selectedMailbox } = useSelectedMailbox();
 	const mailboxId = selectedMailbox?.id ?? null;
 	const [searches, setSearches] = useState<SavedSearch[]>([]);
-	const [loading, setLoading] = useState(true);
+	const [loadedMailbox, setLoadedMailbox] = useState<string | null>();
+	const loading = loadedMailbox === undefined || loadedMailbox !== mailboxId;
 	const [error, setError] = useState<string | null>(null);
 	const [open, setOpen] = useState(false);
 	const [editing, setEditing] = useState<SavedSearch | null>(null);
@@ -32,11 +33,10 @@ export function SavedSearchesSettings() {
 
 	const refresh = useCallback(() => {
 		if (!mailboxId) return;
-		setLoading(true);
 		void apiGet<{ searches: SavedSearch[] }>(`/api/saved-searches?mailboxId=${encodeURIComponent(mailboxId)}`)
 			.then((result) => { setSearches(result.searches); setError(null); })
 			.catch((cause) => setError(cause instanceof Error ? cause.message : "Failed to load searches"))
-			.finally(() => setLoading(false));
+			.finally(() => setLoadedMailbox(mailboxId));
 	}, [mailboxId]);
 	useEffect(() => { refresh(); }, [refresh]);
 

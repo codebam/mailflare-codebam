@@ -21,16 +21,16 @@ export function ItemsView() {
 	const mailboxId = selectedMailbox?.id ?? null;
 	const [items, setItems] = useState<Item[]>([]);
 	const [filter, setFilter] = useState<Filter>("open");
-	const [loading, setLoading] = useState(true);
+	const [loadedKey, setLoadedKey] = useState<string>();
+	const loading = loadedKey === undefined || loadedKey !== `${mailboxId}:${filter}`;
 	const [error, setError] = useState<string | null>(null);
 
 	const refresh = useCallback(() => {
 		if (!mailboxId) return;
-		setLoading(true);
 		void apiGet<{ items: Item[] }>(`/api/items?mailboxId=${encodeURIComponent(mailboxId)}&status=${filter}`)
 			.then((result) => { setItems(result.items); setError(null); })
 			.catch((cause) => setError(cause instanceof Error ? cause.message : "Failed to load items"))
-			.finally(() => setLoading(false));
+			.finally(() => setLoadedKey(`${mailboxId}:${filter}`));
 	}, [mailboxId, filter]);
 	useEffect(() => { refresh(); }, [refresh]);
 
@@ -44,7 +44,7 @@ export function ItemsView() {
 		}
 	}
 
-	const now = Date.now();
+	const [now] = useState(() => Date.now());
 	return <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
 		<div className="flex items-center gap-3">
 			<ListChecks className="h-6 w-6 text-neutral-500" />
