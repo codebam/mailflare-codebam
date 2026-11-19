@@ -830,6 +830,32 @@
       ]
     },
     {
+      "name": "0089_rules_templates_searches_mute.sql",
+      "statements": [
+        "CREATE TABLE `rules` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`name` text NOT NULL,\n\t`enabled` integer DEFAULT true NOT NULL,\n\t`priority` integer DEFAULT 0 NOT NULL,\n\t`match` text NOT NULL,\n\t`actions` text NOT NULL,\n\t`fired_count` integer DEFAULT 0 NOT NULL,\n\t`last_fired_at` integer,\n\t`created_at` integer NOT NULL,\n\t`updated_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE INDEX `rules_mailbox_priority_idx` ON `rules` (`mailbox_id`,`priority`);",
+        "CREATE TABLE `mailbox_templates` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`name` text NOT NULL,\n\t`subject` text DEFAULT '' NOT NULL,\n\t`body` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\t`updated_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE INDEX `mailbox_templates_mailbox_idx` ON `mailbox_templates` (`mailbox_id`);",
+        "CREATE TABLE `saved_searches` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`name` text NOT NULL,\n\t`query` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE INDEX `saved_searches_mailbox_idx` ON `saved_searches` (`mailbox_id`);",
+        "CREATE TABLE `muted_threads` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`thread_key` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE UNIQUE INDEX `muted_threads_mailbox_thread_idx` ON `muted_threads` (`mailbox_id`,`thread_key`);",
+        "ALTER TABLE `messages` ADD COLUMN `category` text;"
+      ]
+    },
+    {
+      "name": "0090_actions_categories_items.sql",
+      "statements": [
+        "CREATE TABLE `agent_actions` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`tool` text NOT NULL,\n\t`message_id` text,\n\t`subject` text,\n\t`thread_key` text,\n\t`before_state` text,\n\t`after_state` text,\n\t`undoable` integer DEFAULT false NOT NULL,\n\t`undone_at` integer,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade,\n\tFOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE set null\n);",
+        "CREATE INDEX `agent_actions_mailbox_created_idx` ON `agent_actions` (`mailbox_id`,`created_at`);",
+        "CREATE TABLE `categories` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text DEFAULT '' NOT NULL,\n\t`name` text NOT NULL,\n\t`name_key` text NOT NULL,\n\t`color` text,\n\t`created_at` integer NOT NULL\n);",
+        "CREATE UNIQUE INDEX `categories_mailbox_name_idx` ON `categories` (`mailbox_id`,`name_key`);",
+        "CREATE TABLE `items` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`message_id` text,\n\t`kind` text DEFAULT 'task' NOT NULL,\n\t`title` text NOT NULL,\n\t`details` text,\n\t`due_at` integer,\n\t`status` text DEFAULT 'open' NOT NULL,\n\t`created_at` integer NOT NULL,\n\t`updated_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade,\n\tFOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE set null\n);",
+        "CREATE INDEX `items_mailbox_status_idx` ON `items` (`mailbox_id`,`status`);",
+        "CREATE INDEX `items_mailbox_due_idx` ON `items` (`mailbox_id`,`due_at`);"
+      ]
+    },
+    {
       "name": "0090_labels.sql",
       "statements": [
         "CREATE TABLE `labels` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`name` text NOT NULL,\n\t`name_key` text NOT NULL,\n\t`color` text,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
@@ -837,6 +863,46 @@
         "CREATE TABLE `message_labels` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`message_id` text NOT NULL,\n\t`label_id` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,\n\tFOREIGN KEY (`label_id`) REFERENCES `labels`(`id`) ON UPDATE no action ON DELETE cascade\n);",
         "CREATE UNIQUE INDEX `message_labels_message_label_idx` ON `message_labels` (`message_id`,`label_id`);",
         "CREATE INDEX `message_labels_label_idx` ON `message_labels` (`label_id`);"
+      ]
+    },
+    {
+      "name": "0091_sender_policy_delivery.sql",
+      "statements": [
+        "CREATE TABLE `sender_policies` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`address` text NOT NULL,\n\t`policy` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE UNIQUE INDEX `sender_policies_mailbox_address_idx` ON `sender_policies` (`mailbox_id`,`address`);",
+        "CREATE TABLE `rule_outbound_log` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`mailbox_id` text NOT NULL,\n\t`kind` text NOT NULL,\n\t`sender` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE INDEX `rule_outbound_log_mailbox_sender_idx` ON `rule_outbound_log` (`mailbox_id`,`sender`,`created_at`);",
+        "ALTER TABLE `messages` ADD COLUMN `delivered_to` text;",
+        "ALTER TABLE `messages` ADD COLUMN `delivery_status` text;",
+        "ALTER TABLE `messages` ADD COLUMN `delivery_detail` text;"
+      ]
+    },
+    {
+      "name": "0092_attachment_text_embeddings.sql",
+      "statements": [
+        "CREATE TABLE `attachment_texts` (\n\t`attachment_id` text PRIMARY KEY NOT NULL,\n\t`content` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`attachment_id`) REFERENCES `message_attachments`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE VIRTUAL TABLE `attachment_text_fts` USING fts5(\n\t`content`,\n\tcontent='attachment_texts',\n\tcontent_rowid='rowid',\n\ttokenize='unicode61 remove_diacritics 2'\n);",
+        "CREATE TRIGGER `attachment_text_fts_ai` AFTER INSERT ON `attachment_texts` BEGIN\n\tINSERT INTO `attachment_text_fts`(`rowid`, `content`)\n\tVALUES (new.`rowid`, new.`content`);\nEND;",
+        "CREATE TRIGGER `attachment_text_fts_ad` AFTER DELETE ON `attachment_texts` BEGIN\n\tINSERT INTO `attachment_text_fts`(`attachment_text_fts`, `rowid`, `content`)\n\tVALUES ('delete', old.`rowid`, old.`content`);\nEND;",
+        "CREATE TRIGGER `attachment_text_fts_au` AFTER UPDATE OF `content` ON `attachment_texts` BEGIN\n\tINSERT INTO `attachment_text_fts`(`attachment_text_fts`, `rowid`, `content`)\n\tVALUES ('delete', old.`rowid`, old.`content`);\n\tINSERT INTO `attachment_text_fts`(`rowid`, `content`)\n\tVALUES (new.`rowid`, new.`content`);\nEND;",
+        "INSERT INTO `attachment_text_fts`(`attachment_text_fts`) VALUES ('rebuild');",
+        "CREATE TABLE `message_embeddings` (\n\t`message_id` text PRIMARY KEY NOT NULL,\n\t`model` text NOT NULL,\n\t`content_hash` text NOT NULL,\n\t`embedding` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade\n);"
+      ]
+    },
+    {
+      "name": "0093_access_tokens.sql",
+      "statements": [
+        "CREATE TABLE `access_tokens` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`token_hash` text NOT NULL,\n\t`kind` text NOT NULL,\n\t`user_id` text NOT NULL,\n\t`mailbox_id` text,\n\t`name` text NOT NULL,\n\t`scopes` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\t`last_used_at` integer,\n\tFOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,\n\tFOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON UPDATE no action ON DELETE cascade\n);",
+        "CREATE UNIQUE INDEX `access_tokens_token_hash_idx` ON `access_tokens` (`token_hash`);",
+        "CREATE INDEX `access_tokens_user_idx` ON `access_tokens` (`user_id`);",
+        "CREATE INDEX `access_tokens_mailbox_idx` ON `access_tokens` (`mailbox_id`);"
+      ]
+    },
+    {
+      "name": "0094_ai_settings.sql",
+      "statements": [
+        "ALTER TABLE `mailbox_agent_settings` ADD COLUMN `classify_enabled` integer DEFAULT true NOT NULL;",
+        "ALTER TABLE `mailbox_agent_settings` ADD COLUMN `extract_items_enabled` integer DEFAULT true NOT NULL;"
       ]
     }
   ]
