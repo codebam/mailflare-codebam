@@ -1,5 +1,16 @@
 # Self-hosting Mailflare (Docker)
 
+## On this page
+
+- [Quick start](#quick-start)
+- [Receiving mail](#receiving-mail)
+- [Sending mail](#sending-mail)
+- [Cloudflare zone management (optional)](#cloudflare-zone-management-optional)
+- [Configuration reference](#configuration-reference)
+- [Operations](#operations)
+- [Email assistant and MCP](#email-assistant-and-mcp)
+- [Running without Docker](#running-without-docker)
+
 Mailflare can run as a single container on any host instead of Cloudflare
 Workers. The same code serves both; the container provides its own database
 (SQLite on a volume), blob storage (files on the same volume), job queue,
