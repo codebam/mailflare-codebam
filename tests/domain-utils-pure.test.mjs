@@ -71,9 +71,9 @@ test("isZoneApex matches only the exact zone name", () => {
 	assert.equal(isZoneApex("example.com.", "example.com"), false);
 });
 
-test("normalizeHostname trims, lowercases, drops trailing dots and punycodes", () => {
+test("normalizeHostname trims, lowercases, drops trailing dots and punycodes (edges)", () => {
 	assert.equal(normalizeHostname("  EXAMPLE.COM.  "), "example.com");
-	assert.equal(normalizeHostname("example.com..."), "example.com");
+	assert.equal(normalizeHostname("example.com.."), "example.com");
 	assert.equal(normalizeHostname("MÜNCHEN.de"), "xn--mnchen-3ya.de");
 	assert.equal(normalizeHostname(""), "");
 });
@@ -82,6 +82,8 @@ test("normalizeHostname leaves input the URL parser cannot safely read", () => {
 	assert.equal(normalizeHostname("user@example.com"), "user@example.com");
 	assert.equal(normalizeHostname("https://example.com"), "https://example.com");
 	assert.equal(normalizeHostname("bad host.com"), "bad host.com");
+	assert.equal(normalizeHostname("foo/bar"), "foo/bar");
+	assert.equal(normalizeHostname("HTTPS://Example.com"), "https://example.com");
 	assert.equal(normalizeHostname("0x7f.1"), "127.0.0.1");
 });
 
@@ -101,6 +103,9 @@ test("isValidHostname accepts ordinary DNS names but not IPs or malformed labels
 		"example.123",
 		"1.2.3.4",
 		"0x7f.1",
+		"127.0.0.1",
+		"example.com.",
+		`${"a".repeat(64)}.example.com`,
 	]) assert.equal(isValidHostname(bad), false, bad);
 });
 
@@ -117,8 +122,8 @@ test("getZoneLookupCandidates walks from the full name to the registrable zone",
 		"b.example.com",
 		"example.com",
 	]);
-	assert.deepEqual(getZoneLookupCandidates("example.com"), ["example.com"]);
 	assert.deepEqual(getZoneLookupCandidates("example.com."), ["example.com"]);
+	assert.deepEqual(getZoneLookupCandidates("localhost"), []);
 	assert.deepEqual(getZoneLookupCandidates(""), []);
 });
 
