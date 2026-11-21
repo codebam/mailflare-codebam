@@ -1,5 +1,13 @@
 # Databases
 
+## On this page
+
+- [Configuration](#configuration)
+- [Migrations](#migrations)
+- [What is the same everywhere](#what-is-the-same-everywhere)
+- [What differs](#what-differs)
+- [Trying it locally](#trying-it-locally)
+
 Mailflare stores its data in **Cloudflare D1** by default. Nothing needs configuring for that: deploy with the `DB` binding from `wrangler.jsonc` and you are done.
 
 Set `DATABASE_URL` to use another database instead. Every database [Drizzle ORM](https://orm.drizzle.team) supports is covered by three dialects:
