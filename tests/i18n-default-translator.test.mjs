@@ -50,3 +50,17 @@ test("defaultTranslator selects English CLDR plural variants", () => {
 test("defaultTranslator is the same helper as an explicit English translator", () => {
 	assert.equal(defaultTranslator("navigation.inbox"), createTranslator("en")("navigation.inbox"));
 });
+
+test("defaultTranslator resolves English catalog keys without any caller-supplied catalog", () => {
+	assert.equal(defaultTranslator("navigation.inbox"), "Inbox");
+	assert.equal(defaultTranslator("thread.expand", { label: "all" }), "Expand all");
+	assert.equal(defaultTranslator("not.a.catalog.key"), "not.a.catalog.key");
+});
+
+test("defaultTranslator selects English CLDR plural variants from count", () => {
+	assert.equal(defaultTranslator("thread.attachmentCount", { count: 0 }), "0 attachments");
+	assert.equal(defaultTranslator("thread.attachmentCount", { count: 1 }), "1 attachment");
+	assert.equal(defaultTranslator("thread.attachmentCount", { count: 2 }), "2 attachments");
+	// A key without variants falls back to the bare message rather than a plural suffix.
+	assert.equal(defaultTranslator("common.selectedCount", { count: 3 }), "3 selected");
+});
