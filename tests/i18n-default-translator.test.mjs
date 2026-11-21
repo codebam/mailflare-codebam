@@ -64,3 +64,14 @@ test("defaultTranslator selects English CLDR plural variants from count", () => 
 	// A key without variants falls back to the bare message rather than a plural suffix.
 	assert.equal(defaultTranslator("common.selectedCount", { count: 3 }), "3 selected");
 });
+
+test("defaultTranslator renders bundled English without a catalog or fetch", () => {
+	assert.equal(defaultTranslator("navigation.inbox"), "Inbox");
+	assert.equal(defaultTranslator("thread.attachmentCount.one", { count: 2 }), "2 attachment");
+});
+
+test("defaultTranslator selects English plurals and leaves unknown keys visible", () => {
+	assert.equal(defaultTranslator("thread.attachmentCount", { count: 1 }), "1 attachment");
+	assert.equal(defaultTranslator("thread.attachmentCount", { count: 3 }), "3 attachments");
+	assert.equal(defaultTranslator("missingly.key"), "missingly.key");
+});
