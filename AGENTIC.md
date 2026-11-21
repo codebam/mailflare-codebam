@@ -1,5 +1,17 @@
 # Agentic email and MCP implementation plan
 
+## On this page
+
+- [Goal and recommended scope](#goal-and-recommended-scope)
+- [What the reference actually implements](#what-the-reference-actually-implements)
+- [Existing Mailflare foundations and integration gaps](#existing-mailflare-foundations-and-integration-gaps)
+- [Feature details](#feature-details)
+- [Architecture and storage](#architecture-and-storage)
+- [Implementation map](#implementation-map)
+- [Delivery sequence and acceptance criteria](#delivery-sequence-and-acceptance-criteria)
+- [Proposed defaults and later decisions](#proposed-defaults-and-later-decisions)
+- [Implementation status (September 24, 2026)](#implementation-status-september-24-2026)
+
 Status: initial implementation added September 24, 2026. The feature contract and acceptance checklist below describe the intended complete design. The implementation status at the end distinguishes shipped code from remaining work. No build or validation commands were run, per the project's `AGENTS.md` instruction.
 
 ## Goal and recommended scope
