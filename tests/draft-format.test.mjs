@@ -62,3 +62,30 @@ test("html escapes text, keeps line breaks, and empty input stays empty", () => 
 	);
 	assert.deepEqual(formatAgentDraftBody("   \n\n  "), { text: "", html: "" });
 });
+
+test("formatAgentDraftBody strips inline markdown emphasis", () => {
+	assert.deepEqual(formatAgentDraftBody("Hello **world**"), {
+		text: "Hello world",
+		html: "<div>Hello world</div>",
+	});
+	assert.equal(formatAgentDraftBody("__bold__ _italic_ ~~gone~~ `mono`").text, "bold italic gone mono");
+});
+
+test("formatAgentDraftBody converts headings, bullets and links", () => {
+	assert.equal(formatAgentDraftBody("## Title").text, "Title");
+	assert.deepEqual(formatAgentDraftBody("- one\n- two"), {
+		text: "• one\n• two",
+		html: "<div>• one<br>• two</div>",
+	});
+	assert.equal(formatAgentDraftBody("[docs](https://example.com)").text, "docs (https://example.com)");
+});
+
+test("formatAgentDraftBody drops code fences, collapses blank lines and trims", () => {
+	assert.equal(formatAgentDraftBody("```js\nlet x=1;\n```").text, "let x=1;");
+	assert.equal(formatAgentDraftBody("  a\r\n\r\n\r\n\r\nb  ").text, "a\n\nb");
+	assert.deepEqual(formatAgentDraftBody(""), { text: "", html: "" });
+});
+
+test("formatAgentDraftBody escapes html in the derived alternative", () => {
+	assert.equal(formatAgentDraftBody("a < b & c > d").html, "<div>a &lt; b &amp; c &gt; d</div>");
+});
