@@ -1,5 +1,16 @@
 # API and integrations
 
+## On this page
+
+- [Domain management](#domain-management)
+- [Calendar and booking](#calendar-and-booking)
+- [Account and mailbox management](#account-and-mailbox-management)
+- [Sending email](#sending-email)
+- [JMAP](#jmap)
+- [Password reset, passkeys and two-factor authentication](#password-reset-passkeys-and-two-factor-authentication)
+- [Searching](#searching)
+- [Real-time updates](#real-time-updates)
+
 Mailflare exposes APIs for domain, account, and mailbox management, and for sending email. Authentication and mailbox permissions still apply to these routes.
 
 ## Domain management
