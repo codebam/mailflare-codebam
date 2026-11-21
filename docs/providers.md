@@ -1,5 +1,15 @@
 # Sending and receiving providers
 
+## On this page
+
+- [Choosing at add time](#choosing-at-add-time)
+- [Resend](#resend)
+- [Amazon SES](#amazon-ses)
+- [MX records and switching receiving provider](#mx-records-and-switching-receiving-provider)
+- [Cleaning up the provider you left](#cleaning-up-the-provider-you-left)
+- [Behavior that differs from Cloudflare](#behavior-that-differs-from-cloudflare)
+- [Configuration reference](#configuration-reference)
+
 Mailflare keeps your mail data in your own D1 database and R2 bucket, Backblaze B2 or AWS S3 (or SQLite and local files when self-hosted). What carries mail over the wire is a choice you make **per domain**, separately for receiving and for sending:
 
 | | Cloudflare | Resend | Amazon SES |
