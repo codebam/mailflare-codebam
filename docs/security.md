@@ -1,5 +1,13 @@
 # Security notes for inbound mail
 
+## On this page
+
+- [Deleted attachments stay in the original message](#deleted-attachments-stay-in-the-original-message)
+- [Authentication results](#authentication-results)
+- [Webhooks](#webhooks)
+- [Forwarding loop guard](#forwarding-loop-guard)
+- [Attachments](#attachments)
+
 ## Deleted attachments stay in the original message
 
 Deleting an attachment removes its stored file and its row, so it can no longer be
