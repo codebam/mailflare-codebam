@@ -1,5 +1,19 @@
 # Troubleshooting
 
+## On this page
+
+- [Cloudflare error 9109: Invalid access token](#cloudflare-error-9109-invalid-access-token)
+- [Cloudflare error 10000 on Email Routing](#cloudflare-error-10000-on-email-routing)
+- [Cloudflare error 2008 for existing MX records](#cloudflare-error-2008-for-existing-mx-records)
+- [Resend or SES domain stays "not verified"](#resend-or-ses-domain-stays-not-verified)
+- ["This domain has MX records for another mail service"](#this-domain-has-mx-records-for-another-mail-service)
+- [Resend says the key can only send mail](#resend-says-the-key-can-only-send-mail)
+- [SES receiving setup fails](#ses-receiving-setup-fails)
+- [D1 error 7404: Database could not be found](#d1-error-7404-database-could-not-be-found)
+- [Scheduled backups are not running](#scheduled-backups-are-not-running)
+- [Inbound mail is not arriving](#inbound-mail-is-not-arriving)
+- [The password-reset email never arrives](#the-password-reset-email-never-arrives)
+
 ## Cloudflare error 9109: Invalid access token
 
 The Deploy to Cloudflare flow can deploy the Worker, but its deployment token is not exposed to Mailflare at runtime. Create a separate Cloudflare API token and set it as `CF_TOKEN`.
