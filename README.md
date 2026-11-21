@@ -3,6 +3,16 @@
 
 # Mailflare
 
+## On this page
+
+- [Screenshots](#screenshots)
+- [Features](#features)
+- [Cost](#cost)
+- [Deploy](#deploy)
+- [Local development](#local-development)
+- [Documentation](#documentation)
+- [License](#license)
+
 A self-hosted alternative to Google Workspace. Setup **custom domain Emails**, **Calendar, Drive, Booking** and **built-in AI agents**.
 
 Self-host it on Cloudflare or Docker. **Or try [Mailflare Cloud](https://cloud.mailflare.co?ref=github) with high-deliverable emails** from $4​
