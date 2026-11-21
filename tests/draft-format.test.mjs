@@ -89,3 +89,36 @@ test("formatAgentDraftBody drops code fences, collapses blank lines and trims", 
 test("formatAgentDraftBody escapes html in the derived alternative", () => {
 	assert.equal(formatAgentDraftBody("a < b & c > d").html, "<div>a &lt; b &amp; c &gt; d</div>");
 });
+
+test("formatAgentDraftBody strips markdown furniture without losing the words", () => {
+	const input = [
+		"# Heading",
+		"",
+		"```js",
+		"- **bold** and _italic_ and ~~gone~~",
+		"- [label](https://example.com/x) and `code`",
+		"",
+		"",
+		"__strong__ tail",
+	].join("\r\n");
+	assert.equal(formatAgentDraftBody(input).text, [
+		"Heading",
+		"",
+		"• bold and italic and gone",
+		"• label (https://example.com/x) and code",
+		"",
+		"strong tail",
+	].join("\n"));
+});
+
+test("formatAgentDraftBody returns composer HTML matching its plain text", () => {
+	const { text, html } = formatAgentDraftBody("**<b> &** `x`\n\nnext");
+	assert.equal(text, "<b> & x\n\nnext");
+	assert.equal(html, "<div>&lt;b&gt; &amp; x<br><br>next</div>");
+});
+
+test("blank draft bodies produce empty text and empty HTML", () => {
+	const { text, html } = formatAgentDraftBody("  \n\n  ");
+	assert.equal(text, "");
+	assert.equal(html, "");
+});
