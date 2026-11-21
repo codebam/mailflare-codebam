@@ -1,5 +1,20 @@
 # Deployment and configuration
 
+## On this page
+
+- [Overview](#overview)
+- [Step 1: Setup CF_TOKEN](#step-1-setup-cf_token)
+- [Step 2: Deploy mailflare](#step-2-deploy-mailflare)
+- [Step 3: Complete mailflare setup](#step-3-complete-mailflare-setup)
+- [Step 4: Connect your primary domain and create an account](#step-4-connect-your-primary-domain-and-create-an-account)
+- [Deploy with an AI coding agent](#deploy-with-an-ai-coding-agent)
+- [Manual deployment](#manual-deployment)
+- [Object storage (R2, Backblaze B2 or AWS S3)](#object-storage-r2-backblaze-b2-or-aws-s3)
+- [Database backups](#database-backups)
+- [Email assistant and MCP](#email-assistant-and-mcp)
+- [Updating Mailflare](#updating-mailflare)
+- [Branding license](#branding-license)
+
 This guide covers Cloudflare deployment, runtime configuration, database backups, and application updates.
 
 ## Overview
