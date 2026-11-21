@@ -35,3 +35,30 @@ test("toolEmailSchema advertises an email format without a lookaround pattern", 
 		assert.equal(json.pattern, undefined);
 	}
 });
+
+test("accepts a single well-formed email address", () => {
+	for (const value of ["alice@example.com", "first.last+tag@sub.example.co.uk"]) {
+		assert.equal(toolEmailSchema.safeParse(value).success, true, value);
+	}
+});
+
+test("rejects malformed and multi-address input with the custom message", () => {
+	for (const value of ["", "not-an-email", "a..b@example.com", "alice@", "a@b.com, c@d.com"]) {
+		const result = toolEmailSchema.safeParse(value);
+		assert.equal(result.success, false, value);
+		assert.equal(result.error.issues[0].message, "Invalid email", value);
+	}
+});
+
+test("rejects non-string values before the email refinement", () => {
+	const result = toolEmailSchema.safeParse(123);
+	assert.equal(result.success, false);
+	assert.match(result.error.issues[0].message, /expected string/);
+});
+
+test("advertises the email format and a model-facing description in its metadata", () => {
+	assert.deepEqual(toolEmailSchema.meta(), {
+		format: "email",
+		description: "A single email address",
+	});
+});
