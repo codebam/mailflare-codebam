@@ -46,14 +46,14 @@ await build({
 			builder.onLoad({ filter: /.*/, namespace: "stub" }, ({ path }) => ({
 				contents: path === "next/server"
 					? "export const NextResponse = { json: (data, init) => Response.json(data, init) };"
-					: "export function isNodeRuntime() { return !!globalThis.updateNodeRuntime; }",
+					: "export function isNodeRuntime() { return !!globalThis.updateNodeRuntime; } export function getNodeEnv() { return {}; }",
 				loader: "js",
 			}));
 		},
 	}],
 });
 const { POST } = await import(pathToFileURL(join(outDir, "entry.mjs")).href);
-const request = () => new Request("https://mail.test/api/admin/update", { method: "POST" });
+const request = () => new Request("https://mail.test/api/admin/update", { method: "POST", headers: { "Sec-Fetch-Site": "same-origin" } });
 
 test("the fork refuses to dispatch the tree-replacing update workflow", async () => {
 	globalThis.updateNodeRuntime = false;
