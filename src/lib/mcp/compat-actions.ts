@@ -11,6 +11,7 @@ import { parseRemoteImageUrl } from "@/lib/remote-images/fetch";
 import { answerInvite } from "@/lib/calendar/invite-answer";
 import { cleanDraftBody } from "@/lib/ai/verify-draft";
 import { recordAction } from "@/lib/agent-actions/service";
+import { applySpamFeedback } from "@/lib/spam/feedback";
 import { audit, compatDb, denied, errorMessage, ownMessage, output, parseWhen, recordMutation, resolveFolder, threadKeyOf, type CompatDb } from "./compat-shared";
 import type { McpPrincipal } from "./types";
 
@@ -177,13 +178,24 @@ export function registerCompatActionTools(server: McpServer, principal: McpPrinc
 			return { emailId, read };
 		}));
 
-	server.registerTool("move_email", { description: "Move an email to a different folder: inbox, archive, spam, trash, or a user folder id/name.", inputSchema: z.object({ mailboxId: z.string(), emailId: z.string(), folderId: z.string() }), annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } }, async ({ mailboxId, emailId, folderId }) =>
+	server.registerTool("move_email", { description: "Move an email to a different folder: inbox, archive, spam, trash, or a user folder id/name. Filing mail into or out of Spam records spam feedback, so the filter learns from it.", inputSchema: z.object({ mailboxId: z.string(), emailId: z.string(), folderId: z.string() }), annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } }, async ({ mailboxId, emailId, folderId }) =>
 		guard(mailboxId, "mcp:organize", "move_email", async (db) => {
 			const row = await ownMessage(db, mailboxId, emailId);
 			if (row.status === "draft" || row.status === "sent") throw new Error("Cannot move this message");
 			const system: Record<string, string> = { inbox: "received", archive: "archived", spam: "spam", trash: "trash" };
 			if (system[folderId]) {
-				await db.update(messages).set({ status: system[folderId], folderId: null }).where(eq(messages.id, emailId));
+				const target = system[folderId];
+				// Spam is a classifier answer, not just a folder: the web UI and the
+				// in-app assistant both record it as feedback (updateMessageStatusForUser
+				// -> applySpamFeedback) so the Bayesian tokens and sender reputation
+				// learn. Without this, an agent filing mail into Spam taught the filter
+				// nothing, and the next message from the same campaign landed in Inbox.
+				const feedback = row.direction === "inbound" && (target === "spam" || (target === "received" && row.status === "spam"))
+					? await applySpamFeedback(env, principal.user, emailId, target === "spam" ? "spam" : "ham")
+					: false;
+				if (!feedback) {
+					await db.update(messages).set({ status: target, folderId: null }).where(eq(messages.id, emailId));
+				}
 				await recordMutation(db, mailboxId, "move_email", row, { folderId: null }, true);
 			} else {
 				const target = await resolveFolder(db, mailboxId, folderId);
