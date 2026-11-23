@@ -350,8 +350,14 @@ export async function processInboundMessage(
 			await registerInboundInvite(env, { userId: decision.mailbox.userId, mailboxId: decision.mailbox.mailboxId, messageId, senderAddress: fromAddr, attachments: parsed.attachments });
 		}
 		if (spamAnalysis) {
+			// Mail the spam engine itself filed into Spam counts against the sender: without
+			// this, a campaign domain that keeps arriving accrues "seen" observations with a
+			// clean spam count, so the filter never penalizes it and can even treat the
+			// repeat offender as an established sender. A sender policy block or a routing
+			// rule is deterministic (not the classifier's judgment) and records no spam count.
+			const classifierSpam = status === "spam" && destination.status === "received" && senderPolicy === null && spamAnalysis.verdict === "spam";
 			try {
-				await recordReputationObservation(env, decision.mailbox.mailboxId, getReputationKeys(parsed, spamAnalysis.fingerprint));
+				await recordReputationObservation(env, decision.mailbox.mailboxId, getReputationKeys(parsed, spamAnalysis.fingerprint), classifierSpam);
 			} catch (error) {
 				console.error(`Spam reputation observation failed for ${messageId}`, error);
 			}
