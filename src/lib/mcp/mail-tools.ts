@@ -6,6 +6,7 @@ import { messages } from "@/db/schema";
 import { getMailboxAccessLevel } from "@/lib/mailboxes/access";
 import { listSenderPolicies, removeSenderPolicy, setSenderPolicy } from "@/lib/sender-policy/service";
 import { isSenderPolicy } from "@/lib/sender-policy/sender-policy-utils";
+import { listSenderDomainBlocks, removeSenderDomainBlock, setSenderDomainBlock } from "@/lib/routing/sender-domain-blocks";
 import { exportEmail } from "@/lib/eml-export/service";
 import { getMailboxStorage } from "@/lib/storage/service";
 import { resolveEmbedder, semanticSearch, SEMANTIC_NOT_CONFIGURED, SEMANTIC_SEARCH_LIMIT_MAX } from "@/lib/semantic/service";
@@ -57,6 +58,16 @@ export function registerMailMcpTools(server: McpServer, principal: McpPrincipal,
 		guard(mailboxId, true, "remove_sender_policy", async (db) => {
 			const removed = await removeSenderPolicy(db, mailboxId, address);
 			if (!removed) throw new Error("Sender policy entry not found");
+			return { removed: true };
+		}));
+	server.registerTool("get_sender_domain_blocks", { description: "List the mailbox's sender-domain blocks — inbox rules (Settings → Rules) that file future mail from a whole sender domain into Spam before spam scoring. Read-only.", inputSchema: z.object({ mailboxId: z.string() }), annotations: { readOnlyHint: true, openWorldHint: false } }, async ({ mailboxId }) =>
+		guard(mailboxId, false, "get_sender_domain_blocks", async (db) => ({ blocks: await listSenderDomainBlocks(db, mailboxId) })));
+	server.registerTool("set_sender_domain_block", { description: "Block a whole sender domain for this mailbox (for example a spam campaign's domain). Creates a delivery rule that files future mail whose From address contains the domain into Spam before the spam classifier runs; the block is visible and editable under Settings → Rules. Nothing already stored is moved or deleted. Reversible with remove_sender_domain_block.", inputSchema: z.object({ mailboxId: z.string(), domain: z.string() }), annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } }, async ({ mailboxId, domain }) =>
+		guard(mailboxId, true, "set_sender_domain_block", async (db) => ({ block: await setSenderDomainBlock(db, mailboxId, domain) })));
+	server.registerTool("remove_sender_domain_block", { description: "Remove the sender-domain block for a domain (deletes its inbox rule), so mail from that domain is filtered normally again. Nothing else changes — no mail is moved or deleted.", inputSchema: z.object({ mailboxId: z.string(), domain: z.string() }), annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false } }, async ({ mailboxId, domain }) =>
+		guard(mailboxId, true, "remove_sender_domain_block", async (db) => {
+			const removed = await removeSenderDomainBlock(db, mailboxId, domain);
+			if (!removed) throw new Error("Sender domain block not found");
 			return { removed: true };
 		}));
 	server.registerTool("export_email", { description: "One stored message as a reconstructed RFC 5322 (EML) block under the eml key — rebuilt from the stored fields, never the wire source. Read-only.", inputSchema: z.object({ mailboxId: z.string(), emailId: z.string() }), annotations: { readOnlyHint: true, openWorldHint: false } }, async ({ mailboxId, emailId }) =>

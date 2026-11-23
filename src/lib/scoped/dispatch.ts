@@ -21,7 +21,7 @@ export const SCOPED_TOOL_SCOPES: Record<string, AccessTokenScope> = {
 	// read
 	list_emails: "read", get_email: "read", get_thread: "read", search_emails: "read", get_attachment: "read",
 	list_labels: "read", list_templates: "read", list_saved_searches: "read", summarize_thread: "read",
-	list_scheduled_sends: "read", get_sender_policy: "read", list_folders: "read", search_contacts: "read",
+	list_scheduled_sends: "read", get_sender_policy: "read", get_sender_domain_blocks: "read", list_folders: "read", search_contacts: "read",
 	list_snoozed: "read", list_items: "read", get_digest: "read", get_storage: "read", list_agent_actions: "read",
 	list_rules: "read", preview_rule: "read", semantic_search: "read", get_calendar_invite: "read", export_email: "read",
 	// draft
@@ -36,7 +36,7 @@ export const SCOPED_TOOL_SCOPES: Record<string, AccessTokenScope> = {
 	create_template: "manage", update_template: "manage", delete_template: "manage",
 	create_saved_search: "manage", update_saved_search: "manage", delete_saved_search: "manage",
 	mute_thread: "manage", unmute_thread: "manage", mark_thread_read: "manage", empty_trash: "manage",
-	delete_spam_emails: "manage", restore_email: "manage", remove_sender_policy: "manage",
+	delete_spam_emails: "manage", restore_email: "manage", remove_sender_policy: "manage", set_sender_domain_block: "manage", remove_sender_domain_block: "manage",
 	create_folder: "manage", update_folder: "manage", delete_folder: "manage",
 	set_reminder: "manage", clear_reminder: "manage", update_item: "manage", undo_action: "manage",
 	create_rule: "manage", update_rule: "manage", delete_rule: "manage", apply_rule: "manage", reorder_rules: "manage",
