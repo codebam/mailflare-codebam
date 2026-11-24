@@ -59,7 +59,7 @@ function d1(sqlite) {
 function database(beforePromotions = false) {
 	const sqlite = new Database(":memory:");
 	sqlite.pragma("foreign_keys = ON");
-	for (const migration of migrations.filter((m) => !beforePromotions || m.name < "0091")) {
+	for (const migration of migrations.filter((m) => !beforePromotions || !m.name.includes("_promotions"))) {
 		for (const statement of migration.statements) sqlite.exec(statement);
 	}
 	return sqlite;
@@ -75,7 +75,7 @@ function seed(sqlite) {
 const toBuffer = (backup) => backup.buffer.slice(backup.byteOffset, backup.byteOffset + backup.byteLength);
 const count = (sqlite, table) => sqlite.prepare(`select count(*) as n from ${table}`).get().n;
 
-test("backup and restore work on a database migrated only to 0089", async () => {
+test("backup and restore work on a database without the promotions migration", async () => {
 	const sqlite = database(true);
 	seed(sqlite);
 	const backup = await exportDatabaseRecords(d1(sqlite));
@@ -84,7 +84,7 @@ test("backup and restore work on a database migrated only to 0089", async () => 
 	assert.equal(count(sqlite, "messages"), 1);
 });
 
-test("a backup written after the promotions migration restores into a 0089 database without losing mail", async () => {
+test("a backup written after the promotions migration restores into a database without it without losing mail", async () => {
 	const source = database();
 	seed(source);
 	source.exec("update messages set category = 'promotions', sender_address = 'a@b.test'");
@@ -96,7 +96,7 @@ test("a backup written after the promotions migration restores into a 0089 datab
 	assert.equal(count(target, "messages"), 1);
 });
 
-test("restoring promotion rows into a 0089 database fails before anything is deleted", async () => {
+test("restoring promotion rows into a database without the promotions migration fails before anything is deleted", async () => {
 	const source = database();
 	seed(source);
 	source.exec("insert into mailbox_promotion_settings (mailbox_id, mode, updated_at) values ('m','show',1)");

@@ -31,13 +31,13 @@ await build({
 				loader: "ts",
 			}));
 			builder.onLoad({ filter: /[\\/]email[\\/]shared-attachments\.ts$/ }, () => ({
-				contents: "export async function getOrCreateSharedAttachmentUrl(_env, id, _origin) { return 'https://files.example.test/shared/' + id; }",
+				contents: "export const SHARED_ATTACHMENT_LINK_DAYS = 30;\nexport async function getOrCreateSharedAttachmentUrl(_env, id, _origin) { return 'https://files.example.test/shared/' + id; }",
 				loader: "ts",
 			}));
 		},
 	}],
 });
-const { prepareCloudflareAttachments } = await import(pathToFileURL(outfile).href);
+const { prepareOutboundAttachments } = await import(pathToFileURL(outfile).href);
 
 const env = {};
 const message = (overrides = {}) => ({ subject: "Subject", headers: {}, ...overrides });
@@ -51,7 +51,7 @@ const bigFile = (overrides = {}) => ({
 
 test("small attachments stay inline and leave the message bodies untouched", async () => {
 	const file = { filename: "a.txt", type: "text/plain", content: new ArrayBuffer(5) };
-	const result = await prepareCloudflareAttachments(env, [file], message({ html: "<p>Body</p>", text: "Body" }));
+	const result = await prepareOutboundAttachments(env, "cloudflare", [file], message({ html: "<p>Body</p>", text: "Body" }));
 	assert.deepEqual(result.attachments, [file]);
 	assert.equal(result.html, "<p>Body</p>");
 	assert.equal(result.text, "Body");
@@ -59,15 +59,13 @@ test("small attachments stay inline and leave the message bodies untouched", asy
 
 test("an attachment exactly at the cloud threshold stays inline", async () => {
 	const file = { filename: "edge.bin", type: "application/octet-stream", content: new ArrayBuffer(3_000_000) };
-	const result = await prepareCloudflareAttachments(env, [file], message());
+	const result = await prepareOutboundAttachments(env, "cloudflare", [file], message());
 	assert.deepEqual(result.attachments, [file]);
 });
 
 test("large attachments become download links and drop out of the inline list", async () => {
 	const small = { filename: "ok.txt", type: "text/plain", content: new ArrayBuffer(10) };
-	const result = await prepareCloudflareAttachments(
-		env,
-		[small, bigFile({ filename: "big.zip", type: "application/zip", storageId: "st_big" })],
+	const result = await prepareOutboundAttachments(env, "cloudflare", [small, bigFile({ filename: "big.zip", type: "application/zip", storageId: "st_big" })],
 		message({ text: "See attached.", html: "<p>See attached.</p>" }),
 	);
 	assert.deepEqual(result.attachments, [small]);
@@ -78,9 +76,7 @@ test("large attachments become download links and drop out of the inline list", 
 });
 
 test("the original body is kept and filenames and URLs are escaped in HTML only", async () => {
-	const result = await prepareCloudflareAttachments(
-		env,
-		[bigFile({ filename: "a&b<script>.txt", storageId: "st_x&y" })],
+	const result = await prepareOutboundAttachments(env, "cloudflare", [bigFile({ filename: "a&b<script>.txt", storageId: "st_x&y" })],
 		message({ text: "  Original body  " }),
 	);
 	assert.equal(
@@ -93,7 +89,7 @@ test("the original body is kept and filenames and URLs are escaped in HTML only"
 });
 
 test("link text and HTML are generated even when the message has no bodies", async () => {
-	const result = await prepareCloudflareAttachments(env, [bigFile({ filename: "s.bin", storageId: "st_s" })], message());
+	const result = await prepareOutboundAttachments(env, "cloudflare", [bigFile({ filename: "s.bin", storageId: "st_s" })], message());
 	assert.equal(
 		result.text,
 		"Files shared through Mailflare (download links expire after 30 days):\n\ns.bin (3.0 MB): https://files.example.test/shared/st_s",
@@ -103,15 +99,13 @@ test("link text and HTML are generated even when the message has no bodies", asy
 
 test("a large attachment without a storage id is rejected", async () => {
 	await assert.rejects(
-		() => prepareCloudflareAttachments(env, [bigFile({ storageId: undefined })], message()),
+		() => prepareOutboundAttachments(env, "cloudflare", [bigFile({ storageId: undefined })], message()),
 		/Large attachment was not stored in object storage/,
 	);
 });
 
 test("a message too large even after linking is rejected", async () => {
-	const result = prepareCloudflareAttachments(
-		env,
-		[bigFile()],
+	const result = prepareOutboundAttachments(env, "cloudflare", [bigFile()],
 		message({ html: "x".repeat(4_980_000) }),
 	);
 	await assert.rejects(result, /Message exceeds Cloudflare's 5 MiB email size limit even with download links/);

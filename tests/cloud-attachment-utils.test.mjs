@@ -26,7 +26,8 @@ await build({
 			builder.onResolve({ filter: /attachment-policy$/ }, () => ({ path: "policy", namespace: "mock" }));
 			builder.onLoad({ filter: /.*/, namespace: "mock" }, ({ path }) => ({
 				contents: path === "shared"
-					? `export async function getOrCreateSharedAttachmentUrl(env, id, origin) {
+					? `export const SHARED_ATTACHMENT_LINK_DAYS = 30;
+export async function getOrCreateSharedAttachmentUrl(env, id, origin) {
 	globalThis.__cloudUrlCalls.push({ id, origin });
 	return "https://files.example.test/s/" + id + "?a=1&b='x'";
 }`
@@ -37,7 +38,7 @@ await build({
 	}],
 });
 
-const { prepareCloudflareAttachments } = await import(pathToFileURL(join(dir, "cloud.mjs")).href);
+const { prepareOutboundAttachments } = await import(pathToFileURL(join(dir, "cloud.mjs")).href);
 
 function attachment(filename, size, storageId) {
 	return {
@@ -62,7 +63,7 @@ test("inline attachments keep the original message content", async () => {
 	globalThis.__cloudUrlCalls = [];
 	const small = attachment("note.txt", 16);
 	const input = message();
-	const result = await prepareCloudflareAttachments({}, [small], input);
+	const result = await prepareOutboundAttachments({}, "cloudflare", [small], input);
 
 	assert.deepEqual(result.attachments, [small]);
 	assert.equal(result.text, input.text);
@@ -74,9 +75,7 @@ test("oversized attachments become escaped download links while small ones stay 
 	globalThis.__cloudUrlCalls = [];
 	const small = attachment("small.txt", 16);
 	const big = attachment(`big<&"'>.txt`, 3_000_001, "share-1");
-	const result = await prepareCloudflareAttachments(
-		{},
-		[big, small],
+	const result = await prepareOutboundAttachments({}, "cloudflare", [big, small],
 		message({ publicOrigin: "https://origin.example.test" }),
 	);
 
@@ -100,7 +99,7 @@ test("oversized attachments become escaped download links while small ones stay 
 test("an oversized attachment without object storage is rejected", async () => {
 	globalThis.__cloudUrlCalls = [];
 	await assert.rejects(
-		() => prepareCloudflareAttachments({}, [attachment("big.txt", 3_000_001)], message()),
+		() => prepareOutboundAttachments({}, "cloudflare", [attachment("big.txt", 3_000_001)], message()),
 		{ message: "Large attachment was not stored in object storage" },
 	);
 	assert.deepEqual(globalThis.__cloudUrlCalls, []);
@@ -108,7 +107,7 @@ test("an oversized attachment without object storage is rejected", async () => {
 
 test("a message above the size limit with no attachments is rejected", async () => {
 	await assert.rejects(
-		() => prepareCloudflareAttachments({}, [], message({ text: "x".repeat(4_980_000), html: "" })),
+		() => prepareOutboundAttachments({}, "cloudflare", [], message({ text: "x".repeat(4_980_000), html: "" })),
 		{ message: "Message exceeds Cloudflare's 5 MiB email size limit" },
 	);
 });
@@ -116,9 +115,7 @@ test("a message above the size limit with no attachments is rejected", async () 
 test("a message too large even after linking attachments is rejected", async () => {
 	globalThis.__cloudUrlCalls = [];
 	await assert.rejects(
-		() => prepareCloudflareAttachments(
-			{},
-			[attachment("big.txt", 3_000_001, "share-2")],
+		() => prepareOutboundAttachments({}, "cloudflare", [attachment("big.txt", 3_000_001, "share-2")],
 			message({ text: "x".repeat(4_975_000), html: "" }),
 		),
 		{ message: "Message exceeds Cloudflare's 5 MiB email size limit even with download links" },
