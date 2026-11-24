@@ -20,7 +20,8 @@ CREATE TABLE `mailbox_sender_preferences` (
 	CONSTRAINT `mailbox_sender_preferences_mailbox_sender_idx` UNIQUE(`mailbox_id`,`sender_address`)
 );
 --> statement-breakpoint
-ALTER TABLE `messages` ADD `category` varchar(64);--> statement-breakpoint
+-- messages.category already exists: our 0013_rules_templates_searches_mute adds it.
+--> statement-breakpoint
 ALTER TABLE `messages` ADD `sender_address` varchar(191);--> statement-breakpoint
 ALTER TABLE `mailbox_promotion_settings` ADD CONSTRAINT `mailbox_promotion_settings_mailbox_id_mailboxes_id_fk` FOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `mailbox_sender_preferences` ADD CONSTRAINT `mailbox_sender_preferences_mailbox_id_mailboxes_id_fk` FOREIGN KEY (`mailbox_id`) REFERENCES `mailboxes`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

@@ -952,7 +952,6 @@
     {
       "name": "0094_promotions.sql",
       "statements": [
-        "ALTER TABLE `messages` ADD `category` text;",
         "ALTER TABLE `messages` ADD `sender_address` text;",
         "CREATE INDEX `messages_category_page_idx` ON `messages` (`mailbox_id`,`category`,`status`,`folder_id`,`created_at` DESC,`id` DESC);",
         "CREATE INDEX `messages_category_count_idx` ON `messages` (`mailbox_id`,`category`,`folder_id`,`direction`,`status`,`read`,`snoozed_until`);",

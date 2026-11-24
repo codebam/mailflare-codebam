@@ -1,4 +1,5 @@
-ALTER TABLE `messages` ADD `category` text;
+-- messages.category already exists: our 0089_rules_templates_searches_mute adds it
+-- (rules store a category id there), so do not add the column a second time.
 --> statement-breakpoint
 ALTER TABLE `messages` ADD `sender_address` text;
 --> statement-breakpoint

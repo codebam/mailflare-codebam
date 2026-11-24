@@ -17,7 +17,8 @@ CREATE TABLE "mailbox_sender_preferences" (
 	"updated_at" bigint NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "messages" ADD COLUMN "category" text;--> statement-breakpoint
+-- messages.category already exists: our 0013_rules_templates_searches_mute adds it.
+--> statement-breakpoint
 ALTER TABLE "messages" ADD COLUMN "sender_address" text;--> statement-breakpoint
 ALTER TABLE "mailbox_promotion_settings" ADD CONSTRAINT "mailbox_promotion_settings_mailbox_id_mailboxes_id_fk" FOREIGN KEY ("mailbox_id") REFERENCES "public"."mailboxes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "mailbox_sender_preferences" ADD CONSTRAINT "mailbox_sender_preferences_mailbox_id_mailboxes_id_fk" FOREIGN KEY ("mailbox_id") REFERENCES "public"."mailboxes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

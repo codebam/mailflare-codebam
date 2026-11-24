@@ -386,8 +386,6 @@ export const messages = sqliteTable(
 		spamAnalysisError: text("spam_analysis_error"),
 		/** When the message last entered Trash or Spam; maintained by triggers (migration 0053). */
 		trashedAt: timestamp("trashed_at"),
-		/** Set at intake from bulk-mail headers. Null is a normal message or one not classified (older mail). */
-		category: text("category", { enum: ["promotions"] }),
 		/** Lower-cased bare From address, grouped on by Subscriptions. Null when longer than 191 characters (MySQL index limit), never truncated. */
 		senderAddress: text("sender_address"),
 		createdAt: timestamp("created_at")
