@@ -3,12 +3,15 @@
 /** Longest mailbox allowed by RFC 5321 (254 in practice); anything longer is never tested or written. */
 export const MAX_ICS_ADDRESS = 320;
 
+/** One plain mailbox; the regex the Takeout importer tests addresses with. */
+export const ICS_ADDRESS = /^[^\s<>",;:@]+@[^\s<>",;:@]+$/;
+
 /**
  * A calendar address must be one plain mailbox; anything with whitespace or separators is left out of the file.
  * The local part excludes @ so a long run of @ cannot backtrack quadratically, and the length is capped before the test.
  */
 export function isIcsAddress(value: string): boolean {
-	return value.length <= MAX_ICS_ADDRESS && /^[^\s<>",;:@]+@[^\s<>",;:@]+$/.test(value);
+	return value.length <= MAX_ICS_ADDRESS && ICS_ADDRESS.test(value);
 }
 
 export function escapeIcsText(value: string): string {
